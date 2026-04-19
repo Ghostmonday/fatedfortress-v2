@@ -13,6 +13,17 @@ const MAX_CANDIDATES = 4;
 
 export function parse(input: string, context: PaletteContext): ParseResult {
   if (!input || input.trim().length === 0) {
+    if (!localStorage.getItem("hasSeenPalette")) {
+      localStorage.setItem("hasSeenPalette", "1");
+      return {
+        kind: "candidates",
+        candidates: [{
+          intent: { type: "help", command: null },
+          confidence: 0.99,
+          label: "try: /spectate  /join rm_...  /connect  /?",
+        }],
+      };
+    }
     return {
       kind: "error",
       hint: "type a command — try 'create room', 'join rm_...', or '?'",

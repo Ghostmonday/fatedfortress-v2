@@ -4,21 +4,15 @@
 # Deploy: wrangler deploy
 # Local dev: wrangler dev
 
-name = "ff-relay"
+name = "fortress-relay"
 main = "src/index.ts"
-compatibility_date = "2026-01-01"
+compatibility_date = "2024-11-01"
 
-[observability]
-enabled = false
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "RelayDO"
 
-# TODO: Fill in account_id after `wrangler login`
-# account_id = ""
-
-# TODO: Durable Object binding — set SCRIPT_NAME to the relay script name
+# P3.1: Uncomment when DO-to-DO routing is implemented
 # [[durable_objects.bindings]]
-# name = "SIGNALING"
-# class_name = "SignalingDO"
-
-[vars]
-# Env vars injected at deploy time, not committed
-# FF_ORIGIN = "https://fatedfortress.com"
+# name = "RELAY_NAMESPACE"
+# class_name = "RelayDO"

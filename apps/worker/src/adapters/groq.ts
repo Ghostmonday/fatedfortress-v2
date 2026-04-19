@@ -1,13 +1,61 @@
-/**
- * adapters/groq.ts — Groq API adapter.
- *
- * API style: OpenAI-compatible (Chat Completions), streaming
- * Endpoint: https://api.groq.com/openai/v1/chat/completions
- * Auth: Bearer GROQ_API_KEY
- * Models: llama-3.3-70b-versatile, mixtral-8x7b-32768
- *
- * NOTE: Groq is notable for very fast first-token latency.
- * Useful as a fallback when other providers are rate-limited.
- */
+interface AdapterGenerateOptions {
+  key: string;
+  model: string;
+  prompt: string;
+  systemPrompt: string;
+  signal: AbortSignal;
+}
 
-// TODO: adapters/groq.ts
+export default {
+  async *generate(opts: AdapterGenerateOptions): AsyncGenerator<string> {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${opts.key}`,
+      },
+      body: JSON.stringify({
+        model: opts.model,
+        messages: [
+          ...(opts.systemPrompt ? [{ role: "system", content: opts.systemPrompt }] : []),
+          { role: "user", content: opts.prompt },
+        ],
+        stream: true,
+      }),
+      signal: opts.signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Groq error ${response.status}: ${err}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) yield content;
+          } catch {}
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+};

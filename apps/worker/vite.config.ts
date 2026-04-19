@@ -7,9 +7,17 @@
  *   - Manual chunks: isolate hash-wasm in its own chunk (required for WASM)
  *   - No minification of the entry chunk (preserves SRI hash stability)
  *   - Output: dist/ with index.html + assets/
+ *   - define: inject FF_ORIGIN and WORKER_ORIGIN from env
  *
  * The hash-wasm import is pinned to a specific version+hash in package.json.
  * Vite's rollupOptions.input determines chunk splitting for reproducibility.
  */
 
-// TODO: apps/worker/vite.config.ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  define: {
+    __FF_ORIGIN__: JSON.stringify(process.env.VITE_FF_ORIGIN ?? "https://fatedfortress.com"),
+    __WORKER_ORIGIN__: JSON.stringify(process.env.VITE_WORKER_ORIGIN ?? "https://keys.fatedfortress.com"),
+  },
+});

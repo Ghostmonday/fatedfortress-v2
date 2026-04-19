@@ -43,6 +43,8 @@ import {
   FFError,
   base64urlEncode,
   base64urlDecode,
+  assertEd25519Supported,
+  toBase58 as protocolToBase58,
   type PublicKeyBase58,
 } from "@fatedfortress/protocol";
 
@@ -255,6 +257,8 @@ export function teardownKeystore(): void {
 export async function getSigningKey(): Promise<SigningKeyPair> {
   if (_signingKeyPair) return _signingKeyPair;
 
+  await assertEd25519Supported();
+
   const kp = await crypto.subtle.generateKey(
     { name: "Ed25519" },
     false,              // private key non-extractable
@@ -266,31 +270,9 @@ export async function getSigningKey(): Promise<SigningKeyPair> {
 
   _signingKeyPair = {
     privateKey:      kp.privateKey,
-    publicKeyBase58: toBase58(pubBytes) as PublicKeyBase58,
+    publicKeyBase58: protocolToBase58(pubBytes) as PublicKeyBase58,
   };
 
   return _signingKeyPair;
 }
 
-const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-function toBase58(bytes: Uint8Array): string {
-  let leadingOnes = 0;
-  for (const byte of bytes) {
-    if (byte !== 0) break;
-    leadingOnes++;
-  }
-
-  let num = bytes.reduce(
-    (acc, byte) => acc * 256n + BigInt(byte),
-    0n
-  );
-
-  let encoded = "";
-  while (num > 0n) {
-    encoded = BASE58_ALPHABET[Number(num % 58n)] + encoded;
-    num /= 58n;
-  }
-
-  return "1".repeat(leadingOnes) + encoded;
-}

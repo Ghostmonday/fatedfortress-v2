@@ -20,6 +20,14 @@ export async function handleGenerate(
     throw new FFError("DuplicateRequest", "A request with this ID is already in progress");
   }
 
+  const isSpectator = msg.isSpectator ?? false;
+  if (isSpectator) {
+    throw new FFError(
+      "SpectatorCannotGenerate",
+      "Spectators cannot trigger generation — contribute your API key to participate"
+    );
+  }
+
   if (!hasKey(msg.provider as ProviderId)) {
     throw new FFError("NoKeyStored", `No key stored for provider: ${msg.provider}`);
   }

@@ -21,7 +21,9 @@ import type {
   ReceiptId,
   RoomCategory,
   RoomAccess,
+  RoomRole,
 } from "@fatedfortress/protocol";
+import { getMyPubkey } from "./identity.js";
 
 export interface RoomMeta {
   id: RoomId;
@@ -35,6 +37,10 @@ export interface RoomMeta {
   systemPrompt: string;
   createdAt: number;
   schemaVersion: 1;
+  /** Timestamp when room was upgraded from spectator to full room, null if not upgraded */
+  upgradedAt: number | null;
+  /** Public key of the active host (may differ from original hostPubkey during handoff) */
+  activeHostPubkey: PublicKeyBase58;
 }
 
 export interface ParticipantEntry {
@@ -44,6 +50,10 @@ export interface ParticipantEntry {
   contributesKey: boolean;
   /** Tokens per user per hour if contributing key, null otherwise */
   quotaPerUser: number | null;
+  /** Whether this participant is spectating (read-only, no API key contribution) */
+  isSpectator?: boolean;
+  /** Official roles assigned to this participant */
+  roles?: RoomRole[];
 }
 
 export interface PresenceEntry {
@@ -52,6 +62,16 @@ export interface PresenceEntry {
   /** Cursor position in the output pane as character offset, null if not focused */
   cursorOffset: number | null;
   lastSeenAt: number;
+  /** Whether this presence entry belongs to a spectator */
+  isSpectator?: boolean;
+}
+
+export interface SpectatorMessage {
+  id: string;
+  pubkey: PublicKeyBase58;
+  displayName: string;
+  text: string;
+  ts: number;
 }
 
 export interface FortressRoomDoc {
@@ -61,6 +81,8 @@ export interface FortressRoomDoc {
   receiptIds: Y.Array<ReceiptId>;
   templates: Y.Array<string>;
   presence: Y.Map<PresenceEntry>;
+  /** Chat messages among spectators in a room */
+  spectatorChat: Y.Array<SpectatorMessage>;
   /** The raw Y.Doc — for transport (y-webrtc) and persistence (OPFS/IndexedDB) */
   doc: Y.Doc;
 }
@@ -68,12 +90,13 @@ export interface FortressRoomDoc {
 export function createRoomDoc(initialMeta?: Partial<RoomMeta>): FortressRoomDoc {
   const doc = new Y.Doc();
 
-  const meta        = doc.getMap<RoomMeta[keyof RoomMeta]>("meta");
-  const participants = doc.getArray<ParticipantEntry>("participants");
-  const output      = doc.getText("output");
-  const receiptIds  = doc.getArray<ReceiptId>("receiptIds");
-  const templates   = doc.getArray<string>("templates");
-  const presence    = doc.getMap<PresenceEntry>("presence");
+  const meta         = doc.getMap<RoomMeta[keyof RoomMeta]>("meta");
+  const participants  = doc.getArray<ParticipantEntry>("participants");
+  const output       = doc.getText("output");
+  const receiptIds   = doc.getArray<ReceiptId>("receiptIds");
+  const templates    = doc.getArray<string>("templates");
+  const presence     = doc.getMap<PresenceEntry>("presence");
+  const spectatorChat = doc.getArray<SpectatorMessage>("spectatorChat");
 
   if (initialMeta) {
     doc.transact(() => {
@@ -87,10 +110,12 @@ export function createRoomDoc(initialMeta?: Partial<RoomMeta>): FortressRoomDoc 
       meta.set("systemPrompt", initialMeta.systemPrompt ?? "");
       meta.set("createdAt", initialMeta.createdAt ?? Date.now());
       meta.set("schemaVersion", 1);
+      meta.set("upgradedAt", null);
+      meta.set("activeHostPubkey", initialMeta.activeHostPubkey ?? ("" as PublicKeyBase58));
     });
   }
 
-  return { meta, participants, output, receiptIds, templates, presence, doc };
+  return { meta, participants, output, receiptIds, templates, presence, spectatorChat, doc };
 }
 
 export const getRoomId     = (r: FortressRoomDoc): RoomId      => r.meta.get("id")     as RoomId;
@@ -163,6 +188,39 @@ export function removePresence(room: FortressRoomDoc, pubkey: PublicKeyBase58): 
 }
 
 /**
+ * Returns the currently active room doc, creating one if it doesn't exist.
+ * In a multi-room app this would be keyed by roomId; for now we maintain
+ * a single active doc in memory.
+ */
+let _activeRoomDoc: FortressRoomDoc | null = null;
+
+export function getActiveRoomDoc(roomId: RoomId): FortressRoomDoc {
+  if (!_activeRoomDoc || getRoomId(_activeRoomDoc) !== roomId) {
+    _activeRoomDoc = createRoomDoc({ id: roomId });
+  }
+  return _activeRoomDoc;
+}
+
+export function setActiveRoomDoc(doc: FortressRoomDoc): void {
+  _activeRoomDoc = doc;
+}
+
+/** Returns the active room doc without requiring a roomId — returns null if none is set */
+export function getActiveRoomDocIfSet(): FortressRoomDoc | null {
+  return _activeRoomDoc;
+}
+
+/**
+ * Returns the joinedAt timestamp for the current user, or Date.now() if not found.
+ */
+export function getMyJoinedAt(doc: FortressRoomDoc): number {
+  const myPubkey = getMyPubkey();
+  if (!myPubkey) return Date.now();
+  const participant = doc.participants.toArray().find((p: ParticipantEntry) => p.pubkey === myPubkey);
+  return participant?.joinedAt ?? Date.now();
+}
+
+/**
  * Adds a participant. Idempotent — checks by pubkey before pushing.
  * Uses toArray() scan — acceptable for rooms up to ~1000 participants.
  */
@@ -172,6 +230,20 @@ export function addParticipant(room: FortressRoomDoc, participant: ParticipantEn
     if (!exists) {
       room.participants.push([participant]);
     }
+  });
+}
+
+/**
+ * Updates an existing participant's fields. Idempotent.
+ */
+export function updateParticipant(room: FortressRoomDoc, pubkey: string, patch: Partial<ParticipantEntry>): void {
+  room.doc.transact(() => {
+    const arr = room.participants.toArray();
+    const idx = arr.findIndex((p: ParticipantEntry) => p.pubkey === pubkey);
+    if (idx < 0) return;
+    const current = arr[idx];
+    room.participants.delete(idx);
+    room.participants.insert(idx, [{ ...current, ...patch } as ParticipantEntry]);
   });
 }
 
@@ -188,12 +260,13 @@ export function hydrateDoc(update: Uint8Array): FortressRoomDoc {
   const doc = new Y.Doc();
   Y.applyUpdate(doc, update);
   return {
-    meta:         doc.getMap("meta"),
-    participants: doc.getArray("participants"),
-    output:       doc.getText("output"),
-    receiptIds:   doc.getArray("receiptIds"),
-    templates:    doc.getArray("templates"),
-    presence:     doc.getMap("presence"),
+    meta:          doc.getMap("meta"),
+    participants:  doc.getArray("participants"),
+    output:        doc.getText("output"),
+    receiptIds:    doc.getArray("receiptIds"),
+    templates:     doc.getArray("templates"),
+    presence:      doc.getMap("presence"),
+    spectatorChat: doc.getArray<SpectatorMessage>("spectatorChat"),
     doc,
   };
 }

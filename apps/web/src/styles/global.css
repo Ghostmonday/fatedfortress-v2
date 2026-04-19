@@ -1,0 +1,535 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+}
+.modal-header {
+  font-weight: bold;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.modal-sub {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 16px;
+}
+.modal-section-label {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.cmd-list { margin-bottom: 16px; }
+.cmd-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+.cmd-row kbd {
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: monospace;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.btn-primary {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.btn-secondary {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+.upgrade-banner {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  padding: 12px 24px;
+  z-index: 1000;
+  font-size: 13px;
+}
+
+/* ── Room layout ─────────────────────────────────────────── */
+.room-split {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+.room-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 2px solid #000;
+  background: #fff;
+}
+.room-title {
+  font-weight: bold;
+  font-size: 16px;
+}
+.spectator-badge {
+  background: #000;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  letter-spacing: 0.1em;
+}
+.btn-leave {
+  margin-left: auto;
+  background: #fff;
+  border: 1px solid #000;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.room-control-pane {
+  border-bottom: 2px solid #000;
+  background: #fafafa;
+  min-height: 200px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.room-output-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ── Control pane ─────────────────────────────────────────── */
+.control-pane {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.control-section label {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.control-section select,
+.control-section textarea {
+  border: 1px solid #ccc;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+.control-section textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+#btn-generate {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+#btn-generate:hover { background: #333; }
+#btn-generate:active { background: #555; }
+#btn-abort {
+  background: #c00;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+.templates-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.template-btn {
+  background: #fff;
+  border: 1px solid #000;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: monospace;
+}
+.template-btn:hover { background: #f0f0f0; }
+
+/* ── Fuel gauge ─────────────────────────────────────────── */
+.fuel-gauge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fuel-bar {
+  flex: 1;
+  height: 8px;
+  background: #eee;
+  border: 1px solid #ccc;
+}
+.fuel-fill {
+  height: 100%;
+  background: #00c853;
+  transition: width 0.3s ease;
+}
+.fuel-label {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* ── Output pane ─────────────────────────────────────────── */
+.output-pane {
+  height: 100%;
+}
+.output-content {
+  height: 100%;
+  overflow-y: auto;
+}
+.output-content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+.output-placeholder {
+  color: #888;
+  font-style: italic;
+}
+
+/* ── Spectator chat ─────────────────────────────────────────── */
+.spectator-chat {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.spectator-chat-viewer {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+  border: 1px solid #ccc;
+  padding: 8px;
+  background: #fff;
+}
+.spc-msg {
+  font-size: 13px;
+  padding: 2px 0;
+}
+.spc-ts { color: #888; margin-right: 6px; }
+.spc-name { font-weight: bold; margin-right: 6px; }
+.spectator-chat input {
+  border: 1px solid #ccc;
+  padding: 8px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Room table ─────────────────────────────────────────── */
+.table-header {
+  padding: 32px 16px 16px;
+  border-bottom: 2px solid #000;
+}
+.table-header h1 {
+  font-size: 28px;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+.table-sub {
+  color: #666;
+  margin: 0 0 16px;
+}
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+.room-card-wrapper {
+  /* wrapper for card */
+}
+
+/* ── Room card ─────────────────────────────────────────── */
+.room-card {
+  border: 2px solid #000;
+  padding: 16px;
+  cursor: default;
+}
+.room-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.category-glyph {
+  font-size: 11px;
+  font-weight: bold;
+  color: #666;
+}
+.room-name {
+  font-weight: bold;
+  font-size: 15px;
+}
+.room-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+.price-badge {
+  font-size: 11px;
+  background: #000;
+  color: #fff;
+  padding: 2px 6px;
+}
+.price-badge.free { background: #00c853; }
+.room-actions {
+  display: flex;
+  gap: 6px;
+}
+.room-actions button {
+  flex: 1;
+  padding: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-join {
+  background: #000;
+  color: #fff;
+  border: none;
+}
+.btn-join:hover { background: #333; }
+.btn-spectate {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+}
+.btn-spectate:hover { background: #f0f0f0; }
+
+/* ── Receipt card ─────────────────────────────────────────── */
+.receipt-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.receipt-item {
+  /* wrapper */
+}
+.receipt-card {
+  border: 1px solid #ccc;
+  padding: 12px;
+  cursor: pointer;
+}
+.receipt-card:hover {
+  border-color: #000;
+  background: #fafafa;
+}
+.receipt-tree {
+  font-family: monospace;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 6px;
+}
+.receipt-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+.receipt-hash {
+  font-family: monospace;
+  font-size: 11px;
+  color: #888;
+  background: #f5f5f5;
+  padding: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.receipt-prompt {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+  font-style: italic;
+}
+
+/* ── Split modal ─────────────────────────────────────────── */
+.split-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.split-modal {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 24px;
+  min-width: 320px;
+}
+.split-modal h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+}
+.split-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+.split-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+.split-btn-cancel,
+.split-btn-confirm {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.split-btn-cancel {
+  background: #fff;
+  border: 1px solid #000;
+}
+.split-btn-confirm {
+  background: #000;
+  color: #fff;
+  border: none;
+}
+
+/* ── Connect page ─────────────────────────────────────────── */
+.connect-header {
+  padding: 32px 16px 16px;
+  border-bottom: 2px solid #000;
+}
+.connect-header h1 {
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+.connect-header p {
+  color: #666;
+  margin: 0;
+}
+.provider-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.provider-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.provider-row label {
+  font-size: 13px;
+  font-weight: bold;
+}
+.provider-row input {
+  border: 1px solid #ccc;
+  padding: 8px;
+  font-size: 13px;
+}
+.btn-save {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.status-msg {
+  font-size: 12px;
+  color: #666;
+}
+.connect-footer {
+  padding: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 12px;
+  color: #888;
+}
+
+/* ── Me page ─────────────────────────────────────────── */
+.me-header {
+  padding: 32px 16px 16px;
+  border-bottom: 2px solid #000;
+}
+.me-header h1 {
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+.me-sub {
+  color: #666;
+  margin: 0;
+  font-size: 13px;
+}
+.loading-msg, .empty-msg, .error-msg {
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+  padding: 32px;
+}
+.error-msg { color: #c00; }
+
+/* ── Table ─────────────────────────────────────────── */
+.loading-msg { color: #888; text-align: center; padding: 32px; }

@@ -5,6 +5,7 @@ import type {
   ModelRef,
   RoomId,
   ReceiptId,
+  RoomRole,
 } from "@fatedfortress/protocol";
 
 const CATEGORY_MAP: Record<string, RoomCategory> = {
@@ -23,6 +24,15 @@ const PROVIDER_MAP: Record<string, ProviderId> = {
   minimax:     "minimax",
   groq:        "groq",
   openrouter:  "openrouter",
+};
+
+export const ROOM_ROLE_MAP: Record<string, RoomRole> = {
+  "prompt_engineer": "prompt_engineer",
+  "sound_engineer":  "sound_engineer",
+  animator:           "animator",
+  "video_editor":    "video_editor",
+  writer:            "writer",
+  critic:            "critic",
 };
 
 const MODEL_ALIASES: Record<string, ModelRef> = {

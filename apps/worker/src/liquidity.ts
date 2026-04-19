@@ -1,11 +1,15 @@
-import type { PublicKeyBase58 } from "@fatedfortress/protocol";
-import type { BudgetToken } from "@fatedfortress/protocol";
+import type { PublicKeyBase58, RoomId } from "@fatedfortress/protocol";
+import type { BudgetToken, SubBudgetToken } from "@fatedfortress/protocol";
 import {
   mintBudgetToken,
   verifyAndConsumeToken,
+  mintSubBudgetTokenForRoom,
+  verifyAndConsumeSubBudgetToken,
   initQuota,
   getFuelGaugeState,
   teardownBudget,
+  revokeSubBudgetDelegation as revokeDelegationCore,
+  isDelegationRevoked as isDelegationRevokedCore,
   type FuelGaugeState,
 } from "./budget.js";
 import { getSigningKey } from "./keystore.js";
@@ -25,12 +29,35 @@ export async function mintToken(
   });
 }
 
+export async function mintSubBudgetToken(
+  delegatePubkey: PublicKeyBase58,
+  roomId: RoomId,
+  tokensToGrant: number
+): Promise<SubBudgetToken> {
+  const hostSigningKey = await getSigningKey();
+  return mintSubBudgetTokenForRoom(
+    hostSigningKey.privateKey,
+    hostSigningKey.publicKeyBase58,
+    delegatePubkey,
+    roomId,
+    tokensToGrant
+  );
+}
+
 export async function verifyToken(
   token: unknown,
   hostPubkey: PublicKeyBase58,
   roomId: string
 ): Promise<number> {
   return verifyAndConsumeToken(token, hostPubkey, roomId);
+}
+
+export async function verifySubBudgetToken(
+  token: unknown,
+  hostPubkey: PublicKeyBase58,
+  roomId: string
+): Promise<number> {
+  return verifyAndConsumeSubBudgetToken(token, hostPubkey, roomId);
 }
 
 export function initRoomQuota(roomId: string, quotaPerUser: number): void {
@@ -43,4 +70,12 @@ export function getFuelState(roomId: string): FuelGaugeState {
 
 export function teardownLiquidity(): void {
   teardownBudget();
+}
+
+export function revokeSubBudgetDelegation(delegatePubkey: PublicKeyBase58): void {
+  revokeDelegationCore(delegatePubkey);
+}
+
+export function isDelegationRevoked(delegatePubkey: PublicKeyBase58): boolean {
+  return isDelegationRevokedCore(delegatePubkey);
 }

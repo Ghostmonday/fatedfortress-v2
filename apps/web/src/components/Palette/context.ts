@@ -75,6 +75,18 @@ export interface PaletteContextSources {
    * prompting the user to link before publishing permanently.
    */
   herenowLinked: boolean;
+
+  /**
+   * Whether the current user is spectating in the active room.
+   * Resolves: spectate-only commands surfaced when true.
+   */
+  isSpectator?: boolean;
+
+  /**
+   * Available roles for this room.
+   * Resolves: "claim_role" intent validation.
+   */
+  availableRoles?: import("@fatedfortress/protocol").RoomRole[];
 }
 
 /**
@@ -110,5 +122,7 @@ export function buildPaletteContext(sources: PaletteContextSources): PaletteCont
     keyValidated:      sources.keyValidated,
     fuelLevel:         sources.fuelLevel,
     herenowLinked:     sources.herenowLinked,
+    isSpectator:       sources.isSpectator ?? false,
+    availableRoles:    sources.availableRoles ?? [],
   };
 }

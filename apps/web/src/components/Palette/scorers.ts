@@ -1,8 +1,9 @@
-import type { PaletteIntent, PaletteContext } from "@fatedfortress/protocol";
+import type { PaletteIntent, PaletteContext, RoomRole } from "@fatedfortress/protocol";
 import { includesAny } from "./tokenizer.js";
 import {
   CATEGORY_MAP,
   PROVIDER_MAP,
+  ROOM_ROLE_MAP,
   extractCategory,
   extractAccess,
   extractPrice,
@@ -19,6 +20,9 @@ export const S = {
   CREATE_ACCESS:     0.04,
   CREATE_PRICE:      0.08,
   CREATE_MAX:        0.91,
+
+  SPECTATE_WITH_ID:  0.93,
+  SPECTATE_CURRENT:  0.72,
 
   JOIN_WITH_VERB:    0.96,
   JOIN_NO_VERB:      0.85,
@@ -53,6 +57,12 @@ export const S = {
   ME:                0.78,
   HELP:              0.75,
   HELP_EXACT:        0.95, // bare "?" or "help"
+
+  UPGRADE_WITH_PRICE: 0.88,
+  UPGRADE_NO_PRICE:   0.65,
+
+  DELEGATE_WITH_PEER:  0.82,
+  DELEGATE_NO_PEER:   0.55,
 } as const;
 
 export interface ScoredIntent {
@@ -125,6 +135,28 @@ export const scorers: IntentScorer[] = [
       },
       label: `create ${category ?? "general"} room (${access}${price ? ` $${price}` : ""})`,
     };
+  },
+
+  // ── spectate_room ──────────────────────────────────────────────────────────
+  (raw, stems) => {
+    const hasSpectateVerb = includesAny(raw, stems, ["spectate", "watch", "observe", "peek", "lurk"] as const);
+    const roomId = extractRoomId(raw);
+
+    if (hasSpectateVerb && roomId) {
+      return {
+        score: S.SPECTATE_WITH_ID,
+        intent: { type: "spectate_room", roomId },
+        label: `spectate ${roomId}`,
+      };
+    }
+    if (hasSpectateVerb) {
+      return {
+        score: S.SPECTATE_CURRENT,
+        intent: { type: "spectate_room", roomId: null },
+        label: "spectate this room",
+      };
+    }
+    return null;
   },
 
   // ── join_room ─────────────────────────────────────────────────────────────
@@ -302,6 +334,30 @@ export const scorers: IntentScorer[] = [
       score:  S.ME,
       intent: { type: "open_me" },
       label:  "open /me receipts vault",
+    };
+  },
+
+  // ── upgrade_room ───────────────────────────────────────────────────────────
+  (raw, stems, context) => {
+    if (!includesAny(raw, stems, ["upgrade", "monetize", "charge", "paid", "price"] as const)) return null;
+    if (context.currentPage !== "room" || !context.currentRoomId) return null;
+    const price = extractPrice(raw);
+    return {
+      score: price ? S.UPGRADE_WITH_PRICE : S.UPGRADE_NO_PRICE,
+      intent: { type: "upgrade_room", price },
+      label: price ? `upgrade room to $${price} USDC` : "upgrade room to paid",
+    };
+  },
+
+  // ── delegate_sub_budget ──────────────────────────────────────────────────
+  (raw, stems) => {
+    if (!includesAny(raw, stems, ["delegate", "authorize", "handoff", "trust"] as const)) return null;
+    const peer = raw.find(t => t.startsWith("@")) ?? null;
+    const tokens = extractPrice(raw) ?? 1000; // DEFAULT_DELEGATE_TOKENS
+    return {
+      score: peer ? S.DELEGATE_WITH_PEER : S.DELEGATE_NO_PEER,
+      intent: { type: "delegate_sub_budget", peer, tokensPerUser: tokens },
+      label: peer ? `delegate ${tokens} tokens to ${peer}` : "delegate sub-budget (select peer)",
     };
   },
 

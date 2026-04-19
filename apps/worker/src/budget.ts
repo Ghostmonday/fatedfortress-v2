@@ -13,6 +13,7 @@
 
 import {
   type BudgetToken,
+  type SubBudgetToken,
   type PublicKeyBase58,
   verifyBudgetToken,
   generateTokenId,
@@ -20,8 +21,11 @@ import {
   encodeBudgetTokenSigningMessage,
   isBudgetToken,
   BUDGET_TOKEN_TTL_MS,
+  SUB_BUDGET_TOKEN_TTL_MS,
   FFError,
   base64urlEncode,
+  base64urlDecode,
+  fromBase58,
 } from "@fatedfortress/protocol";
 
 const ONE_HOUR_MS = 3_600_000;
@@ -53,6 +57,12 @@ const quotaState = new Map<string, QuotaState>();
  * (16 random bytes = 2^128 collision space).
  */
 const seenNonces = new Set<string>();
+
+/**
+ * Set of delegates whose sub-budget delegation has been revoked.
+ * Keyed by delegatePubkey.
+ */
+const revokedDelegates = new Set<PublicKeyBase58>();
 
 /**
  * Initializes or resets quota state for a room.
@@ -214,4 +224,131 @@ export function getFuelGaugeState(roomId: string): FuelGaugeState {
 export function teardownBudget(): void {
   quotaState.clear();
   seenNonces.clear();
+  revokedDelegates.clear();
+}
+
+/**
+ * Revokes a delegate's sub-budget authority.
+ * After this call, the delegate cannot use their sub-budget token.
+ */
+export function revokeSubBudgetDelegation(delegatePubkey: PublicKeyBase58): void {
+  revokedDelegates.add(delegatePubkey);
+}
+
+export function isDelegationRevoked(delegatePubkey: PublicKeyBase58): boolean {
+  return revokedDelegates.has(delegatePubkey);
+}
+
+export function isSubBudgetToken(obj: any): obj is SubBudgetToken {
+  return (
+    obj &&
+    typeof obj.id === "string" &&
+    typeof obj.roomId === "string" &&
+    typeof obj.delegatePubkey === "string" &&
+    typeof obj.hostPubkey === "string" &&
+    typeof obj.tokensGranted === "number" &&
+    typeof obj.issuedAt === "number" &&
+    typeof obj.expiresAt === "number" &&
+    typeof obj.nonce === "string" &&
+    typeof obj.signature === "string"
+  );
+}
+
+export async function mintSubBudgetTokenForRoom(
+  hostSigningKey: CryptoKey,
+  hostPubkey: PublicKeyBase58,
+  delegatePubkey: PublicKeyBase58,
+  roomId: RoomId,
+  tokensToGrant: number
+): Promise<SubBudgetToken> {
+  const now = Date.now();
+  const nonce = generateTokenNonce();
+  const tokenData = {
+    roomId,
+    delegatePubkey,
+    hostPubkey,
+    tokensGranted: tokensToGrant,
+    issuedAt: now,
+    expiresAt: now + SUB_BUDGET_TOKEN_TTL_MS,
+    nonce,
+  };
+  const sigBuffer = await crypto.subtle.sign(
+    "Ed25519",
+    hostSigningKey,
+    encodeBudgetTokenSigningMessage(tokenData)
+  );
+  return {
+    ...tokenData,
+    id: generateTokenId(),
+    signature: base64urlEncode(new Uint8Array(sigBuffer)) as SubBudgetToken["signature"],
+  };
+}
+
+export async function verifyAndConsumeSubBudgetToken(
+  rawToken: unknown,
+  hostPubkeyFromDoc: PublicKeyBase58,
+  roomId: string
+): Promise<number> {
+  if (!isSubBudgetToken(rawToken)) {
+    throw new FFError("SubBudgetTokenForged", "Received object is not a valid SubBudgetToken shape");
+  }
+
+  const token = rawToken as SubBudgetToken;
+
+  if (token.roomId !== roomId) {
+    throw new FFError(
+      "SubBudgetTokenForged",
+      `Token roomId mismatch: expected ${roomId}, got ${token.roomId}`
+    );
+  }
+
+  if (token.hostPubkey !== hostPubkeyFromDoc) {
+    throw new FFError("SubBudgetTokenForged", "Host pubkey mismatch");
+  }
+  if (revokedDelegates.has(token.delegatePubkey)) {
+    throw new FFError("SubBudgetTokenRevoked", "Delegation has been revoked by host");
+  }
+  if (seenNonces.has(token.nonce)) {
+    throw new FFError("SubBudgetTokenReplayed", "Token nonce already seen");
+  }
+  if (Date.now() > token.expiresAt) {
+    throw new FFError("SubBudgetTokenExpired", "Token has expired");
+  }
+
+  const message = encodeBudgetTokenSigningMessage({
+    roomId: token.roomId,
+    participantPubkey: token.delegatePubkey,
+    hostPubkey: token.hostPubkey,
+    tokensGranted: token.tokensGranted,
+    issuedAt: token.issuedAt,
+    expiresAt: token.expiresAt,
+    nonce: token.nonce,
+  });
+
+  const sigBytes = base64urlDecode(token.signature);
+
+  let pubKeyBytes: Uint8Array;
+  try {
+    pubKeyBytes = fromBase58(token.hostPubkey);
+  } catch {
+    throw new FFError("SubBudgetTokenForged", "Invalid base58 encoding in host pubkey");
+  }
+
+  if (pubKeyBytes.length !== 32) throw new FFError("SubBudgetTokenForged", "Invalid public key length");
+
+  const pubKey = await crypto.subtle.importKey(
+    "raw",
+    pubKeyBytes,
+    { name: "Ed25519" },
+    false,
+    ["verify"]
+  );
+
+  const valid = await crypto.subtle.verify("Ed25519", pubKey, sigBytes, message);
+  if (!valid) {
+    throw new FFError("SubBudgetTokenForged", "Signature verification failed");
+  }
+
+  seenNonces.add(token.nonce);
+  return token.tokensGranted;
 }

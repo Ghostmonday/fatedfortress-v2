@@ -1,4 +1,8 @@
-import { FF_ORIGIN, FFError, PROVIDER_ALLOWLIST } from "@fatedfortress/protocol";
+import { FFError, PROVIDER_ALLOWLIST } from "@fatedfortress/protocol";
+
+const FF_ORIGIN = typeof __FF_ORIGIN__ !== "undefined"
+  ? __FF_ORIGIN__
+  : "https://fatedfortress.com";
 import {
   storeKey,
   hasKey,
@@ -7,10 +11,12 @@ import {
   type ProviderId,
   type EncryptedKeyBlob,
 } from "./keystore.js";
-import { handleGenerate } from "./generate.js";
+import { handleGenerate, activeGenerations } from "./generate.js";
 import {
   mintToken,
   verifyToken,
+  mintSubBudgetToken,
+  verifySubBudgetToken,
   initRoomQuota,
   getFuelState,
 } from "./liquidity.js";
@@ -22,11 +28,14 @@ export type InboundMessage =
   | { type: "HAS_KEY";      provider: string;                                requestId: string }
   | { type: "ENCRYPT_KEY";  provider: string; passphrase: string;            requestId: string }
   | { type: "DECRYPT_KEY";  provider: string; blob: EncryptedKeyBlob; passphrase: string; requestId: string }
-  | { type: "GENERATE";     provider: string; model: string; prompt: string; systemPrompt: string; requestId: string }
+  | { type: "GENERATE";     provider: string; model: string; prompt: string; systemPrompt: string; requestId: string; isSpectator?: boolean }
+  | { type: "ABORT_GENERATE"; requestId: string }
   | { type: "VERIFY_TOKEN"; token: unknown; hostPubkey: string; roomId: string; requestId: string }
   | { type: "MINT_TOKEN";   roomId: string; participantPubkey: string; tokensToGrant: number; requestId: string }
   | { type: "INIT_QUOTA";   roomId: string; quotaPerUser: number;            requestId: string }
   | { type: "FUEL_GAUGE";   roomId: string;                                  requestId: string }
+| { type: "DELEGATE_SUB_BUDGET"; peerPubkey: string; tokensToDelegate: number; roomId: string; requestId: string }
+| { type: "REVOKE_DELEGATION";   peerPubkey: string;                               requestId: string }
   | { type: "TERMINATE" };
 
 export type RequestMessage = Exclude<InboundMessage, { type: "TERMINATE" }>;
@@ -116,6 +125,32 @@ export async function dispatchMessage(msg: RequestMessage): Promise<void> {
     case "FUEL_GAUGE": {
       const state = getFuelState(msg.roomId);
       send({ type: "FUEL", requestId, state });
+      return;
+    }
+
+    case "DELEGATE_SUB_BUDGET": {
+      const { mintSubBudgetToken } = await import("./liquidity.js");
+      const token = await mintSubBudgetToken(
+        msg.peerPubkey as any,
+        msg.roomId as any,
+        msg.tokensToDelegate
+      );
+      send({ type: "OK", requestId, payload: { delegated: true, tokenId: token.id } });
+      return;
+    }
+
+    case "REVOKE_DELEGATION": {
+      // Mark the delegate's sub-budget as revoked by removing from the revoked set
+      const { revokeSubBudgetDelegation } = await import("./liquidity.js");
+      revokeSubBudgetDelegation(msg.peerPubkey as any);
+      send({ type: "OK", requestId });
+      return;
+    }
+
+    case "ABORT_GENERATE": {
+      const controller = activeGenerations.get(msg.requestId);
+      controller?.abort();
+      send({ type: "OK", requestId });
       return;
     }
 

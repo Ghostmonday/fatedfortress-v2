@@ -1,11 +1,184 @@
-/**
- * main.ts — FatedFortress web app entry point.
- *
- * Responsibilities:
- *   - Bootstrap the SPA: mount router, initialise Y.js doc, expose test harness
- *   - Set up global keyboard listener for Palette (`/` key)
- *   - Register service worker for here.now offline support
- *   - Wire up the FF test harness (NODE_ENV=test) for verify-key-never-exfiltrates.mjs
- */
+// apps/web/src/main.ts
+import { openPalette, buildPaletteContext } from "./components/Palette/index.js";
+import { showWelcomeModal } from "./components/WelcomeModal.js";
+import { createIdentity } from "./state/identity.js";
+import { handleUpgradeRoom } from "./handlers/upgrade.js";
+import { getActiveRoomDocIfSet } from "./state/ydoc.js";
+import type { PaletteIntent } from "@fatedfortress/protocol";
 
-// TODO: main.ts
+const APP_ROOT = "#app";
+
+function getContainer(): HTMLElement {
+  let app = document.querySelector<HTMLElement>(APP_ROOT);
+  if (!app) {
+    app = document.createElement("div");
+    app.id = "app";
+    document.body.appendChild(app);
+  }
+  app.innerHTML = "";
+  return app;
+}
+
+// ── Page tracking ───────────────────────────────────────────────────────────────
+
+type PageName = "table" | "room" | "connect" | "me";
+let _currentPage: PageName = "table";
+
+function setCurrentPage(page: PageName): void {
+  _currentPage = page;
+}
+
+function getCurrentPage(): PageName {
+  return _currentPage;
+}
+
+// ── Page mount functions ───────────────────────────────────────────────────────
+
+const router: Record<string, () => Promise<(() => void) | void>> = {
+  table: async () => {
+    setCurrentPage("table");
+    const { mountTable } = await import("./pages/table.js");
+    const container = getContainer();
+    return mountTable(container);
+  },
+  room: async () => {
+    setCurrentPage("room");
+    const { mountRoom } = await import("./pages/room.js");
+    const container = getContainer();
+    const pathParts = window.location.pathname.split("/");
+    const roomId = pathParts[2] || "rm_default";
+    return mountRoom(roomId, container);
+  },
+  connect: async () => {
+    setCurrentPage("connect");
+    const { mountConnect } = await import("./pages/connect.js");
+    const container = getContainer();
+    return mountConnect(container);
+  },
+  me: async () => {
+    setCurrentPage("me");
+    const { mountMe } = await import("./pages/me.js");
+    const container = getContainer();
+    return mountMe(container);
+  },
+};
+
+// Each page mount() returns an optional cleanup/unmount function
+let currentUnmount: (() => void) | null = null;
+
+async function route(path: string) {
+  currentUnmount?.();
+  currentUnmount = null;
+
+  const spectateMatch = path.match(/^\/spectate\/(.+)/);
+  if (spectateMatch) {
+    setCurrentPage("room");
+    const { mountRoom } = await import("./pages/room.js");
+    const container = getContainer();
+    currentUnmount = await mountRoom(spectateMatch[1], container, { spectate: true }) ?? null;
+    return;
+  }
+
+  const roomMatch = path.match(/^\/room\/(.+)/);
+  if (roomMatch) {
+    window.history.replaceState({}, "", `/room/${roomMatch[1]}`);
+  } else if (spectateMatch) {
+    window.history.replaceState({}, "", `/spectate/${spectateMatch[1]}`);
+  }
+
+  const [, page] = path.match(/^\/(\w+)/) ?? [];
+  const mountFn = (page && router[page as keyof typeof router])
+    ? router[page as keyof typeof router]
+    : router.table;
+
+  try {
+    const unmount = await mountFn();
+    currentUnmount = unmount ?? null;
+  } catch (err) {
+    console.error(`[main] Failed to mount page "${page}":`, err);
+  }
+}
+
+// ── Intent dispatcher ─────────────────────────────────────────────────────────
+
+async function dispatchIntent(intent: PaletteIntent): Promise<void> {
+  switch (intent.type) {
+    case "upgrade_room": {
+      const doc = getActiveRoomDocIfSet();
+      if (doc) {
+        await handleUpgradeRoom(intent, doc);
+      } else {
+        console.warn("[dispatch] upgrade_room but no active room doc");
+      }
+      break;
+    }
+    default:
+      window.dispatchEvent(new CustomEvent("palette:intent", { detail: { intent } }));
+  }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+
+async function init() {
+  try {
+    await createIdentity();
+  } catch (err) {
+    console.warn("[main] Could not create identity:", err);
+  }
+
+  if (!localStorage.getItem("hasSeenWelcome")) {
+    showWelcomeModal();
+  }
+
+  await route(window.location.pathname);
+
+  window.addEventListener("popstate", () => {
+    route(window.location.pathname);
+  });
+
+  window.addEventListener("palette:select", async (e: Event) => {
+    const { intent } = (e as CustomEvent).detail as { intent: PaletteIntent };
+    await dispatchIntent(intent);
+  });
+}
+
+// ── Palette shortcut ─────────────────────────────────────────────────────────
+
+function openPaletteWithContext(): void {
+  const page = getCurrentPage();
+  const roomDoc = page === "room" ? getActiveRoomDocIfSet() ?? null : null;
+
+  const ctx = buildPaletteContext({
+    currentPage: page,
+    roomDoc,
+    focusedReceiptId: null,
+    currentModel: null,
+    keyValidated: false,
+    fuelLevel: null,
+    herenowLinked: false,
+  });
+  openPalette(ctx);
+}
+
+window.addEventListener("keydown", (e) => {
+  if (
+    e.target instanceof HTMLInputElement ||
+    e.target instanceof HTMLTextAreaElement ||
+    (e.target instanceof HTMLElement && e.target.isContentEditable)
+  ) return;
+
+  if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    openPaletteWithContext();
+  }
+});
+
+// ── Service worker (production only) ──────────────────────────────────────────
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(console.error);
+}
+
+// ── Start app ─────────────────────────────────────────────────────────────────
+
+init();

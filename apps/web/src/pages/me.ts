@@ -1,14 +1,42 @@
-/**
- * pages/me.ts — Private receipts vault (/me).
- *
- * Identified by local Ed25519 identity (no account required).
- * Lists all receipts generated in this browser, with:
- *   - Fork count, parent chain, earnings (for paid rooms)
- *   - Fork graph (ASCII tree)
- *   - Export as signed JSON
- *
- * Storage: IndexedDB via vault.ts.
- * here.now link: receipts stored permanently on here.now.
- */
+// apps/web/src/pages/me.ts
+import { getReceipts } from "../state/vault.js";
+import type { Receipt } from "../state/vault.js";
+import { ReceiptCard } from "../components/ReceiptCard.js";
 
-// TODO: pages/me.ts
+export async function mountMe(container: HTMLElement): Promise<() => void> {
+  container.innerHTML = `
+    <div class="me-header">
+      <h1>MY RECEIPTS</h1>
+      <p class="me-sub">Your generation history</p>
+    </div>
+    <div class="receipt-list" id="receipt-list">
+      <p class="loading-msg">Loading receipts...</p>
+    </div>
+  `;
+
+  try {
+    const receipts: Receipt[] = await getReceipts();
+    const list = document.getElementById("receipt-list")!;
+
+    if (receipts.length === 0) {
+      list.innerHTML = `<p class="empty-msg">No receipts yet. Your generation receipts will appear here.</p>`;
+    } else {
+      // Sort newest first
+      const sorted = [...receipts].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+      list.innerHTML = "";
+
+      for (const receipt of sorted) {
+        const item = document.createElement("div");
+        item.className = "receipt-item";
+        const card = new ReceiptCard(receipt);
+        card.mount(item);
+        list.appendChild(item);
+      }
+    }
+  } catch (err) {
+    const list = document.getElementById("receipt-list")!;
+    list.innerHTML = `<p class="error-msg">Failed to load receipts: ${err}</p>`;
+  }
+
+  return () => { container.innerHTML = ""; };
+}

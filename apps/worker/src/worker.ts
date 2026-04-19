@@ -5,7 +5,9 @@
  * Communicates with the FF main frame exclusively via postMessage.
  */
 
-import { FF_ORIGIN } from "@fatedfortress/protocol";
+const FF_ORIGIN = typeof __FF_ORIGIN__ !== "undefined"
+  ? __FF_ORIGIN__
+  : "https://fatedfortress.com";
 import { teardownKeystore } from "./keystore.js";
 import { teardownLiquidity } from "./liquidity.js";
 import { abortAllGenerations } from "./generate.js";

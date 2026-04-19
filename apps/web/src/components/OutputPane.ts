@@ -1,13 +1,34 @@
-/**
- * components/OutputPane.ts — Streaming output display.
- *
- * - Monospace pre, streaming via Y.Text insertions
- * - Per-peer cursor highlights (colored by pubkey hash)
- * - CLEAR button
- * - Auto-scrolls to bottom on new chunks
- * - No markdown rendering (raw text only, v1)
- *
- * Y.js binding: output pane subscribes to room.output Y.Text changes.
- */
+// apps/web/src/components/OutputPane.ts
 
-// TODO: components/OutputPane.ts
+export class OutputPane {
+  private doc: any;
+  private container: HTMLElement;
+  private outputEl: HTMLElement;
+  private unsubscribe: (() => void) | null = null;
+
+  constructor(doc: any) {
+    this.doc = doc;
+    this.container = document.createElement("div");
+    this.container.className = "output-pane";
+  }
+
+  mount(el: HTMLElement): void {
+    this.outputEl = document.createElement("div");
+    this.outputEl.className = "output-content";
+    this.outputEl.innerHTML = "<pre class=\"output-placeholder\">Waiting for generation...</pre>";
+    this.container.appendChild(this.outputEl);
+    el.appendChild(this.container);
+
+    // Subscribe to output Y.Text changes
+    const render = () => {
+      const text = this.doc.output.toString();
+      this.outputEl.innerHTML = `<pre>${text}</pre>`;
+    };
+    this.doc.output.observe(render);
+    this.unsubscribe = () => this.doc.output.unobserve(render);
+  }
+
+  destroy(): void {
+    this.unsubscribe?.();
+  }
+}

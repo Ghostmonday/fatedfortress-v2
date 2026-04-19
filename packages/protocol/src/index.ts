@@ -15,8 +15,10 @@
  *   FFError (error class with code + message)
  *   hashOutput(output: string): Promise<string>
  *   base64urlEncode / base64urlDecode
+ *   toBase58 / fromBase58
  *   verifyBudgetToken / generateTokenId / generateTokenNonce
  *   encodeBudgetTokenSigningMessage / isBudgetToken
+ *   assertEd25519Supported
  *   BUDGET_TOKEN_TTL_MS
  *
  * Constants:
@@ -51,6 +53,7 @@ export const PROVIDER_ALLOWLIST = [
 export type ProviderId = (typeof PROVIDER_ALLOWLIST)[number];
 
 export const BUDGET_TOKEN_TTL_MS = 1000 * 60 * 60; // 1 hour
+export const SUB_BUDGET_TOKEN_TTL_MS = 1000 * 60 * 60; // 1 hour (same as budget token)
 
 // ---------------------------------------------------------------------------
 // Room & Generation Types
@@ -66,6 +69,14 @@ export type RoomCategory =
 
 export type RoomAccess = "free" | "paid";
 
+export type RoomRole =
+  | "prompt_engineer"
+  | "sound_engineer"
+  | "animator"
+  | "video_editor"
+  | "writer"
+  | "critic";
+
 export interface ModelRef {
   provider: ProviderId;
   model: string;
@@ -78,6 +89,7 @@ export interface ModelRef {
 export type PaletteIntent =
   | { type: "create_room"; category: RoomCategory; access: RoomAccess; price: number | null; name: string | null }
   | { type: "join_room"; roomId: RoomId }
+  | { type: "spectate_room"; roomId: RoomId | null }
   | { type: "fork_receipt"; receiptId: ReceiptId | null }
   | { type: "switch_model"; model: ModelRef | null; rawModelName: string }
   | { type: "publish"; target: "room" | "receipt" }
@@ -89,7 +101,11 @@ export type PaletteIntent =
   | { type: "set_quota"; tokensPerUser: number }
   | { type: "open_connect"; provider: ProviderId | null }
   | { type: "open_me" }
-  | { type: "help"; command: string | null };
+  | { type: "help"; command: string | null }
+  | { type: "claim_role"; role: RoomRole }
+  | { type: "list_roles" }
+  | { type: "upgrade_room"; price: number | null }
+  | { type: "delegate_sub_budget"; peer: string | null; tokensPerUser: number };
 
 export interface PaletteContext {
   currentPage: "table" | "room" | "connect" | "me";
@@ -100,6 +116,8 @@ export interface PaletteContext {
   keyValidated: boolean;
   fuelLevel: number | null;
   herenowLinked: boolean;
+  isSpectator: boolean;
+  availableRoles: RoomRole[];
 }
 
 export type ParseResult =
@@ -123,11 +141,31 @@ export interface BudgetToken {
   signature: string & { readonly __brand: "Signature" };
 }
 
+export interface SubBudgetToken {
+  id: string;
+  roomId: RoomId;
+  delegatePubkey: PublicKeyBase58;
+  hostPubkey: PublicKeyBase58;
+  tokensGranted: number;
+  issuedAt: number;
+  expiresAt: number;
+  nonce: string;
+  signature: string & { readonly __brand: "Signature" };
+}
+
 export interface PaymentIntent {
   amount: number;
   currency: "USDC";
   destination: PublicKeyBase58;
+  platformAddress: PublicKeyBase58;
   memo: string;
+  split: {
+    hostAmount: number;
+    platformAmount: number;
+    hostBasisPoints: 8000;        // 8000/10000 = 80% to host
+    platformBasisPoints: 2000;    // 2000/10000 = 20% to platform
+  };
+  type: "entry_fee" | "tip" | "boost";
 }
 
 // ---------------------------------------------------------------------------
@@ -169,8 +207,50 @@ export function base64urlDecode(str: string): Uint8Array {
   return bytes;
 }
 
+// ─── Base58 Encoding Utilities ───────────────────────────────────────────────
+
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+export function toBase58(bytes: Uint8Array): string {
+  let leadingOnes = 0;
+  for (const byte of bytes) {
+    if (byte !== 0) break;
+    leadingOnes++;
+  }
+  let num = bytes.reduce((acc, byte) => acc * 256n + BigInt(byte), 0n);
+  let encoded = "";
+  while (num > 0n) {
+    encoded = BASE58_ALPHABET[Number(num % 58n)] + encoded;
+    num /= 58n;
+  }
+  return "1".repeat(leadingOnes) + encoded;
+}
+
+export function fromBase58(encoded: string): Uint8Array {
+  let num = 0n;
+  for (const char of encoded) {
+    const value = BASE58_ALPHABET.indexOf(char);
+    if (value < 0) throw new Error(`Invalid Base58 character: ${char}`);
+    num = num * 58n + BigInt(value);
+  }
+  let hex = num.toString(16);
+  if (hex.length % 2 !== 0) hex = "0" + hex;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  let leadingOnes = 0;
+  while (encoded[leadingOnes] === "1") leadingOnes++;
+  const result = new Uint8Array(leadingOnes + bytes.length);
+  result.set(bytes, leadingOnes);
+  return result;
+}
+
 export function generateTokenId(): string {
-  return "tkn_" + Math.random().toString(36).slice(2, 10);
+  // 64 bits of entropy via Web Crypto API (collision-resistant)
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return "tkn_" + hex; // 16 hex chars = 64 bits of entropy, collision-resistant
 }
 
 export function generateTokenNonce(): string {
@@ -197,11 +277,22 @@ export function encodeBudgetTokenSigningMessage(token: Omit<BudgetToken, "id" | 
   return new TextEncoder().encode(s);
 }
 
+export async function assertEd25519Supported(): Promise<void> {
+  try {
+    await crypto.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"]);
+  } catch {
+    throw new FFError(
+      "Ed25519NotSupported",
+      "Your browser does not support Ed25519. Use a current version of Chrome, Firefox, or Safari."
+    );
+  }
+}
+
 export async function verifyBudgetToken(
   token: BudgetToken,
   options: { hostPubkeyFromDoc: PublicKeyBase58; seenNonces: Set<string> }
 ): Promise<{ tokensGranted: number }> {
-  // Stub implementation: verify that hostPubkey matches the doc and nonce is new
+  // 1. Structural Validation
   if (token.hostPubkey !== options.hostPubkeyFromDoc) {
     throw new FFError("BudgetTokenForged", "Host pubkey mismatch");
   }
@@ -211,7 +302,49 @@ export async function verifyBudgetToken(
   if (Date.now() > token.expiresAt) {
     throw new FFError("BudgetTokenExpired", "Token has expired");
   }
-  // Real implementation would use crypto.subtle.verify here
+
+  // 2. Cryptographic Verification
+  const message = encodeBudgetTokenSigningMessage({
+    roomId: token.roomId,
+    participantPubkey: token.participantPubkey,
+    hostPubkey: token.hostPubkey,
+    tokensGranted: token.tokensGranted,
+    issuedAt: token.issuedAt,
+    expiresAt: token.expiresAt,
+    nonce: token.nonce,
+  });
+
+  const sigBytes = base64urlDecode(token.signature);
+
+  // Wrap decoding — fromBase58 throws a plain Error on invalid input which must not
+  // escape as a potentially revealing exception; re-throw as a typed FFError.
+  let pubKeyBytes: Uint8Array;
+  try {
+    pubKeyBytes = fromBase58(token.hostPubkey);
+  } catch {
+    throw new FFError("BudgetTokenForged", "Invalid base58 encoding in host pubkey");
+  }
+
+  // Ed25519 public keys are always 32 bytes
+  if (pubKeyBytes.length !== 32) throw new FFError("BudgetTokenForged", "Invalid public key length");
+
+  const pubKey = await crypto.subtle.importKey(
+    "raw",
+    pubKeyBytes,
+    { name: "Ed25519" },
+    false,
+    ["verify"]
+  );
+
+  const valid = await crypto.subtle.verify("Ed25519", pubKey, sigBytes, message);
+  if (!valid) {
+    throw new FFError("BudgetTokenForged", "Signature verification failed");
+  }
+
+  // 3. Prevent Replay
+  // TODO [Phase 1 follow-up]: seenNonces must survive restarts to prevent replay attacks.
+  // Persist consumed nonces keyed by (roomId + hostPubkey) in IndexedDB (client)
+  // or Durable Object storage (worker). The current in-memory Set resets on reload.
   options.seenNonces.add(token.nonce);
   return { tokensGranted: token.tokensGranted };
 }
