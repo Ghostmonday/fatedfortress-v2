@@ -4,7 +4,7 @@
 
 import type { ParseResult, PaletteContext } from "@fatedfortress/protocol";
 import { tokenizeWithStems } from "./tokenizer.js";
-import { scorers } from "./scorers.js";
+import { scorers, type ScoredIntent } from "./scorers.js";
 
 const CONFIDENCE_THRESHOLD = 0.82;
 const AMBIGUITY_MARGIN = 0.15;
@@ -12,7 +12,6 @@ const MIN_VIABLE = 0.45;
 const MAX_CANDIDATES = 4;
 
 export function parse(input: string, context: PaletteContext): ParseResult {
-  // FIX: hard input length guard before tokenizing
   if (!input || input.trim().length === 0) {
     return {
       kind: "error",
@@ -29,7 +28,6 @@ export function parse(input: string, context: PaletteContext): ParseResult {
     };
   }
 
-  // Score all intent scorers, catching individual failures
   const results: ScoredIntent[] = scorers
     .map((scorer) => {
       try {
