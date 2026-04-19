@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.dist/
+*.local
+
+# Environment files — NEVER commit API keys or secrets
+.env
+.env.*
+!.env.example
+
+# here.now CLI credentials
+.herenow/
+
+# Cloudflare wrangler
+.wrangler/
+.dev.vars
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.log
+npm-debug.log*
+
+# Receipts vault (large, user-specific — not committed)
+# vault.db
+
+# Worker bundle hash manifest — committed separately after review
+# scripts/worker-hash-manifest.json
