@@ -78,7 +78,6 @@ export const scorers: IntentScorer[] = [
     const signals = (hasVerb ? 1 : 0) + (hasNoun ? 1 : 0) + (hasCategory ? 1 : 0);
     if (signals < 2) return null;
 
-    // FIX: use extractAccess with "pay" removed from its verb set
     const access = extractAccess(raw) ?? "free";
     const price  = extractPrice(raw);
 
@@ -156,7 +155,6 @@ export const scorers: IntentScorer[] = [
   // ── pay ───────────────────────────────────────────────────────────────────
   (raw, stems, context) => {
     if (!includesAny(raw, stems, ["pay", "buy", "purchase", "unlock", "access"] as const)) return null;
-    // FIX: use ?? operator for correct null coalescence (was incorrectly using ? ternary)
     const roomId     = extractRoomId(raw) ?? context.currentRoomId;
     const isPaidCtx  = context.currentRoomAccess === "paid";
     if (!roomId && !isPaidCtx) return null;
@@ -184,7 +182,6 @@ export const scorers: IntentScorer[] = [
     if (!includesAny(raw, stems, ["search", "find", "browse", "look", "list"] as const)) return null;
     const category = extractCategory(raw);
 
-    // FIX: positional slice — don't strip words from query by denylist
     const cmdIdx = raw.findIndex((t) =>
       ["search", "find", "browse", "look", "list"].includes(t)
     );
@@ -192,11 +189,10 @@ export const scorers: IntentScorer[] = [
     const queryWords = afterCmd.filter((t) => !CATEGORY_MAP[t] && t !== "rooms" && t !== "room");
     const query      = queryWords.join(" ");
 
-    // FIX: score higher when category found even with empty query
     const score = query.length > 0
       ? S.SEARCH_WITH_QUERY
       : category
-        ? S.SEARCH_NO_QUERY  // raised: category IS the search criterion
+        ? S.SEARCH_NO_QUERY
         : 0.55;
 
     return {
@@ -228,8 +224,6 @@ export const scorers: IntentScorer[] = [
     const hasSetVerb  = includesAny(raw, stems, ["set", "change", "update", "use"]  as const);
     if (!(hasSysWord || hasPrompt) || !hasSetVerb) return null;
 
-    // FIX: positional slice — find the end of command tokens, take everything after.
-    // This preserves words like "system" and "prompt" IF they appear in the value.
     const CMD_TOKENS = new Set(["set", "change", "update", "use", "system", "prompt", "persona", "to", "as", "instructions"]);
     const firstValueIdx = raw.findIndex((t, i) => i > 0 && !CMD_TOKENS.has(t));
     const prompt = firstValueIdx >= 0
@@ -289,7 +283,6 @@ export const scorers: IntentScorer[] = [
     const command   = raw.find((t) => !CMD_WORDS.has(t)) ?? null;
 
     return {
-      // FIX: bare "?" or "help" alone resolves immediately at high confidence
       score:  isBareLiteral ? S.HELP_EXACT : S.HELP,
       intent: { type: "help", command },
       label:  command ? `help: ${command}` : "show available commands",

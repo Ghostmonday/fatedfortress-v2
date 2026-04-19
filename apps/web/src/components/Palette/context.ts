@@ -94,12 +94,11 @@ export function buildPaletteContext(sources: PaletteContextSources): PaletteCont
     ? getRoomAccess(sources.roomDoc)
     : null;
 
-  // Resolution: explicit focused receipt takes priority.
-  // If none, fall back to the last receipt in the current room.
-  let focusedReceiptId: ReceiptId | null = sources.focusedReceiptId;
+  let focusedReceiptId = sources.focusedReceiptId;
+
   if (!focusedReceiptId && sources.roomDoc) {
     const ids = getReceiptIds(sources.roomDoc);
-    focusedReceiptId = ids.length > 0 ? ids[ids.length - 1] : null;
+    focusedReceiptId = ids[ids.length - 1] ?? null;
   }
 
   return {
