@@ -65,6 +65,31 @@ export type IntentScorer = (raw: string[], stems: string[], context: PaletteCont
 
 export const scorers: IntentScorer[] = [
 
+  // ── help ──────────────────────────────────────────────────────────────────
+  (raw, stems) => {
+    const isBareLiteral = raw.length === 1 && (raw[0] === "?" || raw[0] === "help");
+
+    // Resolves immediately at high confidence if the input is exactly "?" or "help"
+    if (isBareLiteral) {
+      return {
+        score:  S.HELP_EXACT,
+        intent: { type: "help", command: null },
+        label:  "show available commands",
+      };
+    }
+
+    if (!includesAny(raw, stems, ["help", "?", "how", "what", "commands"] as const)) return null;
+
+    const CMD_WORDS = new Set(["help", "?", "how", "what", "do", "i", "can", "commands", "show", "list"]);
+    const command   = raw.find((t) => !CMD_WORDS.has(t)) ?? null;
+
+    return {
+      score:  S.HELP,
+      intent: { type: "help", command },
+      label:  command ? `help: ${command}` : "show available commands",
+    };
+  },
+
   // ── create_room ───────────────────────────────────────────────────────────
   (raw, stems) => {
     const verbWords = ["create", "new", "make", "open", "start", "build"] as const;
@@ -280,19 +305,4 @@ export const scorers: IntentScorer[] = [
     };
   },
 
-  // ── help ──────────────────────────────────────────────────────────────────
-  (raw, stems) => {
-    const isBareLiteral = raw.length === 1 && (raw[0] === "?" || raw[0] === "help");
-    if (!includesAny(raw, stems, ["help", "?", "how", "what", "commands"] as const)) return null;
-
-    const CMD_WORDS = new Set(["help", "?", "how", "what", "do", "i", "can", "commands", "show", "list"]);
-    const command   = raw.find((t) => !CMD_WORDS.has(t)) ?? null;
-
-    return {
-      // FIX: bare "?" or "help" alone resolves immediately at high confidence
-      score:  isBareLiteral ? S.HELP_EXACT : S.HELP,
-      intent: { type: "help", command },
-      label:  command ? `help: ${command}` : "show available commands",
-    };
-  },
 ];
