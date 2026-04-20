@@ -297,11 +297,6 @@ function handleIntent(doc: FortressRoomDoc, demoMode: boolean) {
         break;
       }
 
-      case "switch_model": {
-        window.dispatchEvent(new CustomEvent("room:switch_model", { detail: intent }));
-        break;
-      }
-
       case "set_system_prompt": {
         setMeta(doc, { systemPrompt: intent.prompt });
         showBanner("System prompt updated");
@@ -341,10 +336,6 @@ function handleIntent(doc: FortressRoomDoc, demoMode: boolean) {
         break;
       }
 
-      case "upgrade_room": {
-        break;
-      }
-
       case "fork_receipt": {
         if (demoMode) {
           showBanner("Fork is disabled on a demo key — add your own key to unlock");
@@ -367,11 +358,6 @@ function handleIntent(doc: FortressRoomDoc, demoMode: boolean) {
       case "search": {
         window.history.pushState({}, "", "/table");
         window.dispatchEvent(new PopStateEvent("popstate"));
-        break;
-      }
-
-      case "link_herenow": {
-        showBanner("here.now linking: implement OAuth flow");
         break;
       }
 

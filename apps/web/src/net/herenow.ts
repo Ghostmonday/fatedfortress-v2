@@ -84,6 +84,3 @@ export async function linkHereNowAccount(): Promise<string> {
   });
 }
 
-export function getHereNowToken(): string | null {
-  return safeStorage.getItem(KEY_HERENOW_TOKEN);
-}

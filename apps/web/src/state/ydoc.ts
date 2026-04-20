@@ -196,19 +196,7 @@ export function removePresence(room: FortressRoomDoc, pubkey: PublicKeyBase58): 
   });
 }
 
-/**
- * Returns the currently active room doc, creating one if it doesn't exist.
- * In a multi-room app this would be keyed by roomId; for now we maintain
- * a single active doc in memory.
- */
 let _activeRoomDoc: FortressRoomDoc | null = null;
-
-export function getActiveRoomDoc(roomId: RoomId): FortressRoomDoc {
-  if (!_activeRoomDoc || getRoomId(_activeRoomDoc) !== roomId) {
-    _activeRoomDoc = createRoomDoc({ id: roomId });
-  }
-  return _activeRoomDoc;
-}
 
 export function setActiveRoomDoc(doc: FortressRoomDoc): void {
   _activeRoomDoc = doc;
