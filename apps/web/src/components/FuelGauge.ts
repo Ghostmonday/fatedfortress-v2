@@ -20,7 +20,6 @@ export class FuelGauge {
     this.roomId = roomId;
     this.element = document.createElement("div");
     this.element.className = "fuel-gauge";
-    this.element.style.fontFamily = "JetBrains Mono, monospace";
     this.element.style.border = "1px solid #000";
     this.element.style.padding = "8px";
     this.element.style.display = "inline-block";

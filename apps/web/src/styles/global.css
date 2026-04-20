@@ -1,7 +1,10 @@
+/* ── Font imports ────────────────────────────────────────────────────────────── */
+@import url("/src/styles/_fonts.css");
+
 /* FatedFortress — dense terminal brutalism (readable, not nostalgic chaos) */
 
 :root {
-  --ff-font: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+  --ff-font: "Geist Mono", ui-monospace, monospace;
   --ff-step: 4px;
   --ff-line-tight: 1.28;
   --ff-line-body: 1.38;
@@ -68,20 +71,22 @@ html {
   max-width: min(920px, 100%);
   padding: 0 calc(var(--ff-step) * 3);
   font-size: 10px;
+  font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ff-muted);
+  color: #2a2a28;
   user-select: none;
 }
 
 .ff-keystore-boundary__glyph {
-  color: rgba(160, 40, 40, 0.35);
+  color: rgba(140, 36, 36, 0.55);
+  font-weight: 800;
   letter-spacing: 0;
   flex-shrink: 0;
 }
 
 .ff-keystore-boundary__kbd {
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ff-danger);
   letter-spacing: 0.18em;
 }
@@ -151,15 +156,29 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
-.modal-overlay {
+/* Dark modal scrims: flat charcoal + subtle 1px grid (brutalist depth) */
+.modal-overlay,
+.split-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.62);
+  background-color: rgba(28, 28, 28, 0.82);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.modal-overlay {
   z-index: 1000;
   animation: ff-fade-in var(--ff-heavy) ease;
+}
+
+.split-modal-overlay {
+  z-index: 2000;
 }
 
 @keyframes ff-fade-in {
@@ -173,12 +192,12 @@ button:focus-visible {
 
 .modal-box {
   position: relative;
-  background: #fff;
-  border: 2px solid var(--ff-border);
+  background: #f5f5f3;
+  border: 3px solid var(--ff-border);
   padding: calc(var(--ff-step) * 3);
   max-width: 380px;
   width: 90%;
-  box-shadow: 6px 6px 0 var(--ff-border);
+  box-shadow: none;
 }
 
 .modal-header {
@@ -265,17 +284,50 @@ button:focus-visible {
   position: absolute;
   top: calc(var(--ff-step) * 2);
   right: 10px;
-  background: none;
+  margin: 0;
+  padding: 0;
   border: none;
-  font-size: 14px;
+  background: transparent;
   cursor: pointer;
-  padding: 4px 8px;
   line-height: 1;
 }
 
-.modal-close:hover {
-  background: #eee;
+.modal-close__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 2px solid var(--ff-border);
+  background: #deded8;
+  color: var(--ff-ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    background-color var(--ff-tap) ease,
+    color var(--ff-tap) ease,
+    border-color var(--ff-tap) ease;
 }
+
+.modal-close__glyph--text {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+}
+
+.modal-close:hover .modal-close__glyph {
+  background: var(--ff-ink);
+  color: #fff;
+  border-color: var(--ff-ink);
+}
+
+.modal-close:focus-visible .modal-close__glyph {
+  outline: 2px solid var(--ff-danger);
+  outline-offset: 2px;
+}
+
 
 .upgrade-banner {
   position: fixed;
@@ -576,6 +628,28 @@ button:focus-visible {
   gap: calc(var(--ff-step) * 2);
 }
 
+/* Primary table CTA — stronger without breaking brutalist discipline */
+.btn-create-room {
+  border: 2px solid var(--ff-danger);
+  padding: 8px 14px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  box-shadow:
+    4px 4px 0 rgba(154, 24, 24, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.btn-create-room:hover {
+  border-color: #c41e1e;
+  box-shadow:
+    5px 5px 0 rgba(154, 24, 24, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.btn-create-room:active {
+  box-shadow: 2px 2px 0 rgba(154, 24, 24, 0.5);
+}
+
 .room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -591,11 +665,12 @@ button:focus-visible {
   background: #fff;
   transition:
     border-color var(--ff-tap) ease,
-    box-shadow var(--ff-tap) ease;
+    background-color var(--ff-tap) ease;
 }
 
 .room-card:hover {
-  box-shadow: 4px 4px 0 var(--ff-border);
+  border-color: var(--ff-danger);
+  background: #fffafa;
 }
 
 .room-card-header {
@@ -613,8 +688,10 @@ button:focus-visible {
 }
 
 .room-name {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 13px;
+  letter-spacing: -0.03em;
+  color: var(--ff-ink);
 }
 
 .room-meta {
@@ -787,22 +864,13 @@ button:focus-visible {
 }
 
 /* ── Split modal ─────────────────────────────────────────── */
-.split-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.62);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
 
 .split-modal {
-  background: #fff;
-  border: 2px solid var(--ff-border);
+  background: #f5f5f3;
+  border: 3px solid var(--ff-border);
   padding: calc(var(--ff-step) * 3);
   min-width: 280px;
-  box-shadow: 8px 8px 0 var(--ff-border);
+  box-shadow: none;
 }
 
 .split-modal h3 {

@@ -48,7 +48,7 @@ export function mountTable(container: HTMLElement): () => void {
       <h1>FATEDFORTRESS</h1>
       <p class="table-sub">Collaborative AI generation rooms</p>
       <div class="table-actions">
-        <button class="btn-primary" id="btn-create-room">CREATE ROOM</button>
+        <button type="button" class="btn-primary btn-create-room" id="btn-create-room">CREATE ROOM</button>
       </div>
     </div>
     <div class="room-grid" id="room-grid">

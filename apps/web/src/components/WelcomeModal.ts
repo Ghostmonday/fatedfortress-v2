@@ -18,7 +18,9 @@ export function showWelcomeModal(): void {
         <button class="btn-primary" id="btn-join-room">JOIN A POPULAR ROOM</button>
         <button class="btn-secondary" id="btn-add-key">ADD MY API KEY</button>
       </div>
-      <button class="modal-close" id="btn-close">X</button>
+      <button type="button" class="modal-close" id="btn-close" aria-label="Close welcome dialog">
+        <span class="modal-close__glyph modal-close__glyph--text" aria-hidden="true">ESC</span>
+      </button>
     </div>
   `;
   document.body.appendChild(overlay);
