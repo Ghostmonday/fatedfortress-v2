@@ -52,7 +52,7 @@ export class ControlPane {
     this.doc = doc;
     this.demoMode = demoMode;
     this.container = document.createElement("div");
-    this.container.className = "control-pane";
+    this.container.className = "ff-control-pane";
   }
 
   mount(el: HTMLElement): void {
@@ -102,42 +102,47 @@ export class ControlPane {
 
     this.container.innerHTML = `
       ${demoBanner}
-      <div class="control-section">
-        <label>MODEL</label>
-        <select id="model-select">
-          ${ALL_MODELS.map((m) =>
-            `<option value="${m.provider}/${m.model}">${m.label}</option>`
-          ).join("")}
-        </select>
+      <div class="ff-control-section">
+        <label class="ff-label">ENGINE SELECT</label>
+        <div class="ff-select-wrapper">
+          <select id="model-select" class="ff-model-select">
+            ${ALL_MODELS.map((m) =>
+              `<option value="${m.provider}/${m.model}">${m.label}</option>`
+            ).join("")}
+          </select>
+          <svg class="ff-select-arrow" viewBox="0 0 16 16" fill="currentColor" width="16" height="16" aria-hidden="true">
+            <path d="M4.5 6l3.5 4 3.5-4H4.5z"/>
+          </svg>
+        </div>
       </div>
-      <div class="control-section">
-        <label>SYSTEM PROMPT</label>
-        <textarea id="system-prompt" placeholder="Optional system prompt..."></textarea>
+      <div class="ff-control-section">
+        <label class="ff-label ff-label--floating">SYSTEM PROMPT</label>
+        <textarea id="system-prompt" class="ff-textarea" placeholder="Optional system prompt..."></textarea>
       </div>
       ${imageExtras}
-      <div class="control-section">
-        <label>PROMPT</label>
-        <textarea id="prompt-input" placeholder="Enter your prompt..."></textarea>
-        <button id="btn-generate">GENERATE</button>
-        <button id="btn-abort" style="display:none">STOP</button>
+      <div class="ff-control-section ff-control-section--flex">
+        <label class="ff-label ff-label--floating">DIRECTIVE INPUT</label>
+        <textarea id="prompt-input" class="ff-textarea ff-textarea--flex" placeholder="Awaiting parameters..."></textarea>
       </div>
+      <button id="btn-generate" class="ff-btn-generate">INITIALIZE SEQUENCE</button>
+      <button id="btn-abort" class="ff-btn-abort" style="display:none">ABORT SEQUENCE</button>
       ${templates.length > 0 ? `
-      <div class="control-section">
-        <label>TEMPLATES</label>
-        <div class="templates-list">
+      <div class="ff-control-section">
+        <label class="ff-label">TEMPLATES</label>
+        <div class="ff-templates-list">
           ${templates.slice(0, 5).map((t) =>
-            `<button class="template-btn" data-template="${this.escapeAttr(t)}">${this.escapeHtml(t.slice(0, 40))}…</button>`
+            `<button class="ff-template-btn" data-template="${this.escapeAttr(t)}">${this.escapeHtml(t.slice(0, 40))}…</button>`
           ).join("")}
         </div>
       </div>
       ` : ""}
-      <div class="control-section">
-        <label>FUEL</label>
-        <div class="fuel-gauge" id="fuel-gauge">
-          <div class="fuel-bar">
-            <div class="fuel-fill" id="fuel-fill" style="width:100%"></div>
+      <div class="ff-control-section">
+        <label class="ff-label">COMPUTE</label>
+        <div class="ff-fuel-gauge" id="fuel-gauge">
+          <div class="ff-fuel-segments">
+            ${[1,2,3,4,5].map(() => '<div class="ff-fuel-segment"></div>').join("")}
           </div>
-          <span class="fuel-label" id="fuel-label">--</span>
+          <span class="ff-fuel-label" id="fuel-label">--</span>
         </div>
       </div>
     `;

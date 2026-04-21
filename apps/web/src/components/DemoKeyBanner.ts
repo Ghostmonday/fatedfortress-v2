@@ -23,20 +23,20 @@ export function mountDemoKeyBanner(
   });
 
   banner.innerHTML = `
-    <div class="ff-demo-banner-content">
-      <span class="ff-demo-banner-icon" aria-hidden="true">◍</span>
-      <span class="ff-demo-banner-text">
+    <div class="ff-demo-banner__content">
+      <span class="ff-demo-banner__icon" aria-hidden="true">◍</span>
+      <span class="ff-demo-banner__text">
         You're on a <strong>demo key</strong> · ${grant.maxTokens.toLocaleString()} tokens · expires ${expiresLabel}
       </span>
-      <button class="ff-demo-banner-cta" type="button">
+      <button class="ff-demo-banner__cta" type="button">
         Connect your key →
       </button>
-      <button class="ff-demo-banner-dismiss" type="button" aria-label="Dismiss banner">×</button>
+      <button class="ff-demo-banner__dismiss" type="button" aria-label="Dismiss banner">×</button>
     </div>
   `;
 
-  const cta = banner.querySelector(".ff-demo-banner-cta") as HTMLButtonElement;
-  const dismiss = banner.querySelector(".ff-demo-banner-dismiss") as HTMLButtonElement;
+  const cta = banner.querySelector(".ff-demo-banner__cta") as HTMLButtonElement;
+  const dismiss = banner.querySelector(".ff-demo-banner__dismiss") as HTMLButtonElement;
 
   cta.addEventListener("click", onConnectKey);
   dismiss.addEventListener("click", () => banner.remove());
@@ -49,14 +49,14 @@ export function mountDemoKeyBanner(
 /** Fallback banner when demo is unavailable and user needs to connect a key to proceed. */
 export function mountKeyPromptBanner(reason: string): () => void {
   const banner = document.createElement("aside");
-  banner.className = "ff-demo-banner ff-demo-banner-blocked";
+  banner.className = "ff-demo-banner ff-demo-banner--blocked";
   banner.setAttribute("role", "alert");
 
   banner.innerHTML = `
-    <div class="ff-demo-banner-content">
-      <span class="ff-demo-banner-icon" aria-hidden="true">⚠</span>
-      <span class="ff-demo-banner-text">${escapeHTML(reason)}</span>
-      <a class="ff-demo-banner-cta" href="#/connect">Connect key</a>
+    <div class="ff-demo-banner__content">
+      <span class="ff-demo-banner__icon" aria-hidden="true">⚠</span>
+      <span class="ff-demo-banner__text">${escapeHTML(reason)}</span>
+      <a class="ff-demo-banner__cta" href="#/connect">Connect key</a>
     </div>
   `;
 

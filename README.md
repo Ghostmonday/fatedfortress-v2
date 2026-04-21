@@ -1,6 +1,6 @@
 # FATEDFORTRESS
 
-> **The instant AI generation marketplace. Enter your keys. Join a room. Ship live in seconds.**
+> **Real-time collaborative AI generation. A URL you drop into. Keys stay in your browser. Output ships live.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Ghostmonday/fatedfortress-v2/ci.yml?style=flat-square&branch=main)](https://github.com/Ghostmonday/fatedfortress-v2/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black?style=flat-square)](LICENSE)
@@ -10,173 +10,218 @@
 
 ---
 
-## The Problem
-
-Today's AI tools are isolated. One person generates, shares a screenshot, waits for feedback, pastes back, repeat. It's slow, version-controlled by Slack threads, and the output never ships.
-
-Every team pays for its own keys. Rate limits go unused. Outputs live in chat history, not in the world.
-
-**FatedFortress is Craigslist for AI generation power.**
-
----
-
 ## What It Is
 
-A single URL where anyone enters their API key, drops into a live room, and ships real output to a real live URL — in under ten seconds.
+A room is a URL. Open it. Everyone in that room shares the same live output — prompts, generated text, images, audio — streaming in real-time via Y.js CRDTs. No server-side state. No account. No friction.
 
-- **Zero setup.** No account. No IDE. No build step.
-- **Provably BYOK.** Your keys never leave your browser. The Fortress Worker is a sandboxed iframe that calls providers directly. Keys are encrypted at rest. The worker hash is published and verifiable.
-- **Live rooms.** Real-time CRDT sync via Y.js + WebRTC through a Cloudflare Durable Object relay. Everyone in the room watches output stream as it happens.
-- **Spectate mode.** Watch any public room instantly — no key needed, no signaling traffic burned, no payment required.
-- **Every output becomes a URL.** One click publishes to here.now. Share it, embed it, gate it with Tempo stablecoin.
-- **Earn from your keys.** Host a paid room. Contributors pool their rate limits. The fork graph makes great work discoverable.
+Your API keys never leave your browser. A sandboxed worker iframe calls providers directly. Other room members can contribute their own keys or pool rate limits. The host sets the billing mode — host-pays, personal keys, or mixed.
+
+**Every generation produces a receipt.** A permanent, forkable artifact. Fork it into a new room with one click. The fork graph is the permanent record of how ideas evolved — and the viral loop that makes the network grow.
 
 ---
 
-## How It Works
+## The Feel
 
 ```
-HOST creates room  →  ROOM is a URL (no account needed)
-    ↓
-PARTICIPANTS join (or spectate)  →  P2P CRDT sync (no server state)
-    ↓
-KEYS validated in sandboxed Fortress Worker  →  provably never exfiltrated
-    ↓
-GROUP prompts together  →  output streams to all peers in real-time
-    ↓
-ONE CLICK  →  here.now  →  LIVE URL
-    ↓
-SHARE  →  fork graph grows  →  network effect compounds
-    ↓
-PAID ROOM?  →  Tempo stablecoin  →  80% to host, 20% to FF
+┌─────────────────────────────────────────────────────────────────┐
+│  FATEDFORTRESS                        [/]  [?]  [ACCOUNT]     │
+├────────────────────────┬────────────────────────────────────────┤
+│                        │                                        │
+│  LOBBY / ROOMS         │   OUTPUT / VIEWPORT                    │
+│                        │                                        │
+│  [Room cards grid]      │   [Live terminal stream]              │
+│  [Category filters]     │   [Receipt gallery]                  │
+│  [Create room CTA]      │   [Fork / Publish actions]           │
+│                        │                                        │
+├────────────────────────┼────────────────────────────────────────┤
+│  COLLABORATION PANE    │   CONTROL PANE                         │
+│                        │                                        │
+│  Presence avatars       │   Model selector                       │
+│  Tool/mode broadcast    │   System prompt                        │
+│  Annotation pins        │   Prompt input                          │
+│  Activity feed         │   Generate / Abort                     │
+│  Proposal queue        │   Templates                             │
+│  Spectator chat        │   Fuel gauge                           │
+│                        │                                        │
+└────────────────────────┴────────────────────────────────────────┘
 ```
+
+**Sovereign Terminal** design language. Dark machined surfaces. Geist Mono. 1px borders. Hard offset shadows. Phosphor green and amber. Instant hover inversions. Zero rounded corners.
 
 ---
 
-## Key Features
+## Core Features
 
-### Command Palette (`/`)
+### Rooms Are URLs
 
-A trie-accelerated command palette with ghost text completion. Type `/sp` and Tab accepts the longest common prefix — no mouse, no menus.
+No accounts. No install. Share a link, people join. The room persists in OPFS — reconnecting restores full state instantly even if the relay hasn't synced.
 
-```
-/  create animation room free
-/  join rm_abc123
-/  spectate rm_abc123
-/  switch claude-4-opus
-/  publish
-/  pay 5
-/  fork rcp_xyz
-/  set system prompt: you are a 2D game artist
-/  delegate @alice 2000
-/  ?
-```
+### Real-Time Multiplayer
 
-Ghost text previews the full command before you commit. Trie is rebuilt on every open with context-aware vocabulary — room-scoped commands (`spectate`, `join`, `publish`) only appear when you're actually in a room.
+Y.js CRDT sync via WebRTC through a Cloudflare Durable Object relay. Sub-50ms. At 80+ peers the relay shards automatically — up to 9 shards, ~720 peers per room. The relay holds zero persistent state.
 
-### P2P Real-Time Sync
+### BYOK — Keys Never Leave Your Browser
 
-Rooms are Y.js CRDT documents. Changes merge deterministically regardless of network reordering or concurrent edits. The relay is a thin Cloudflare Durable Object fan-out layer — it never holds room state. At 80+ peers, it automatically shards to up to 8 Durable Objects, routing messages between them via an O(1) peer-to-shard map.
+A sandboxed Web Worker iframe calls providers directly. Keys are AES-256-GCM encrypted at rest. The worker's SHA-256 hash is recorded at build time and verifiable via SRI. **A FatedFortress server cannot receive your key.**
 
-- **OPFS caching** — room state is snapshotted to the Origin Private File System every 30 seconds and on disconnect. Reconnecting to a room restores the last state instantly, even if the relay hasn't synced yet.
-- **Spectator mode** — `?spectator=1` tells the relay to skip WebRTC signaling fan-out entirely. Spectators receive CRDT sync updates but never initiate peer connections, burning zero budget.
-- **Sub-50ms sync** — no database round-trip, no server-side state to maintain.
+### Personal API Keys
 
-### Fortress Protocol (BYOK Guarantee)
+Every room member can connect their own API key. Three billing modes:
 
-API keys live in a sandboxed Web Worker iframe with network access allow-listed per provider. Keys are encrypted at rest with Argon2id + AES-256-GCM. The worker's SHA-256 hash is recorded at build time and verifiable via SRI. **A FatedFortress server literally cannot receive a key.**
+- **Host pays** — host's key funds all generations (current model)
+- **Personal keys** — each person pays their own bill
+- **Mixed** — host key default, specific participants use their own
 
-```
-Browser (SPA)
-  ├── Fortress Worker iframe (keys.fatedfortress.com)
-  │     ├── keystore.ts    — Argon2id + AES-256-GCM, Ed25519 signing
-  │     ├── budget.ts      — SubBudgetToken minting, per-participant quota, fuel gauge
-  │     ├── liquidity.ts   — host-side liquidity pool API
-  │     ├── generate.ts    — adapter orchestration + stream cache
-  │     └── adapters/      — openai · anthropic · google · minimax · groq · openrouter
-  │
-  ├── Y.js CRDT doc (room state)
-  │
-  └── Cloudflare Durable Object relay (stateless fan-out + sharding)
-        ├── Parent DO (room-scoped) — peer registry, signaling, shard routing
-        └── Shard DOs (overflow, up to 8) — isolated peer maps, cross-shard forward
-```
+A visible billing panel shows each participant's key status and usage. Hosts can revoke personal key access instantly.
 
-### Provider Liquidity Pool
+### Spectate Mode
 
-Hosts contribute their API keys with per-participant token quotas enforced by signed Ed25519 SubBudgetTokens. Multiple hosts co-host a room, pooling rate limits. A live fuel gauge shows remaining quota per participant. **Rate limits become a social good.**
+Append `?spectate=1` to any room URL. No key needed. No signaling traffic burned. You receive CRDT sync updates but initiate zero peer connections. Watch a room live without costing the host anything.
 
 ### Generation Receipts & Fork Graph
 
-Every generation produces a signed, hash-chained receipt stored permanently on here.now. Fork any receipt into a new room with one click. The fork graph is the public record of how ideas evolved — and the viral loop that makes FatedFortress share itself.
+Every generation is a signed, hash-chained receipt. Stored permanently on here.now. Fork any receipt into a new room — the full context (model, prompt, parameters, seed) becomes the starting point. The fork graph is the audit trail.
 
-### Brutalist Terminal Aesthetic
+### Tool & Mode Presence
+
+When someone is sculpting, animating, painting, or reviewing — their presence avatar broadcasts it live:
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  FATEDFORTRESS                        [CREATE ROOM]  [/]     │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $   │
-│  $                                                       $  │
-│  $   ENTER YOUR KEYS. FORGE YOUR FATE.                   $  │
-│  $   SHIP LIVE IN SECONDS.                               $  │
-│  $                                                       $  │
-│  $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $   │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│  [ALL]  [GAMES]  [CODE]  [ANIMATION]  [WRITING]  [PAID]   │
-├──────────────────────────────────────────────────────────────┤
-│  { }  Minimax Animation Sprint        @3  ████░░  [JOIN]    │
-│  > Sprint through T2V prompts with the team. Fast output.     │
-│  ─────────────────────────────────────────────────────────   │
-│  { }  Claude Code Review              @5  FREE  [SPECTATE]   │
-│  > Live code review with Claude 4 Opus. Paste, critique.     │
-│  ─────────────────────────────────────────────────────────   │
-│  $   Game Jam Helper                  @2  $5  [JOIN]         │
-│  > Paid room. Host has Groq + Claude keys. Fuel available. │
-└──────────────────────────────────────────────────────────────┘
+Alicia · Sculpting · HeroMesh_v3 · Brush: Clay
+Bob · Animating · Frame 240/1200 · DopeSheet
+Carol · Environment · Tile: E4-NEXUS · Painting
 ```
 
-Black on white. Geist Mono. One font everywhere. No color. No exceptions.
+The room knows what everyone is doing without asking.
+
+### Annotation Pins
+
+Click anywhere in the viewport or on a receipt to drop an annotation pin. Label, author, color, resolved/unresolved state. Pins sync in real-time. Resolved pins fade. Click to expand. Review sessions become: drop pin → host fixes → resolve → done.
+
+### Activity Feed
+
+Live chronological log in the collaboration pane:
+
+```
+Alicia joined the room · 2m ago
+Bob changed model to Flux · 1m ago
+Host started generating · now
+Pin "fix normals on arm" resolved by Carlos · 30s ago
+New receipt added by Alicia · 10s ago
+```
+
+Scannable. One line per event. No walls of text.
+
+### Proposal System
+
+Non-hosts draft a prompt or system instruction and submit it as a proposal. The host sees a Proposals panel with Approve / Reject buttons. On Approve, the proposal becomes the live prompt. The whole team contributes — the host controls the direction.
+
+### Generation Queue
+
+When multiple people request generations, requests go into a visible queue. Everyone sees: who requested what, queued or generating, progress. The host reorders, cancels, or promotes. No chaos. No surprises.
+
+### Scene Snapshots
+
+Every 10 minutes (or on demand), the room captures a lightweight scene snapshot: current scene state, active participants, generation history, a short description. Team members browse a snapshot timeline and fork from any point. New joiners catch up by reading the history.
+
+### Review & Approval Workflow
+
+Host defines a checklist: "Modeling approved", "Animation review passed", "Lighting signed off." Each item assignable. On approve: name + timestamp. On reject: note required. Everything stays in the room, connected to receipts and scene history.
+
+### Focus Mode
+
+One click collapses the collaboration pane to a slim sidebar showing avatars + unread notifications. The output viewport expands. A floating toolbar stays accessible for pins, queue, and quick actions. Deep work without distraction.
+
+### Shared Reference Board
+
+A persistent board alongside the viewport for pinning reference images, text notes, URLs, sketches. Shared across all room members. Draggable. Editable by anyone. Style guides, character sheets, asset lists — visible without cluttering the workspace.
+
+---
+
+## Architecture
+
+```
+Browser (SPA)
+│
+├── App Shell (Vanilla TypeScript + DOM)
+│     ├── Router          — hash-based, no framework
+│     ├── Pages/          — room.ts, lobby.ts, me.ts, connect.ts
+│     └── Components/     — ControlPane, OutputPane, PresenceBar,
+│                          SpectatorChat, ReceiptCard, RoomCard,
+│                          DemoKeyBanner, ConnectionBadge, Palette
+│
+├── Y.js CRDT Doc (FortressRoomDoc)
+│     ├── meta            — room name, type, access, price, system prompt
+│     ├── participants    — keyed by pubkey (CRDT-safe Y.Map)
+│     ├── output         — character-level streaming Y.Text
+│     ├── outputItems    — per-item metadata + receipts
+│     ├── receiptIds     — hash-chained receipt IDs
+│     ├── templates      — saved prompt templates
+│     ├── presence       — peer cursor + online state
+│     ├── spectatorChat  — spectator chat messages
+│     ├── proposals      — pending prompt proposals
+│     └── annotations    — viewport pins with resolved state
+│
+├── OPFS Cache           — room state snapshotted every 30s + on disconnect
+│
+├── Fortress Worker iframe (keys.fatedfortress.com)
+│     ├── keystore.ts    — Argon2id + AES-256-GCM, Ed25519 signing
+│     ├── budget.ts       — SubBudgetToken minting, per-participant quota
+│     ├── generate.ts     — adapter orchestration + stream cache
+│     └── adapters/       — openai · anthropic · google · minimax · groq · openrouter
+│
+└── Cloudflare Durable Object relay (stateless fan-out + sharding)
+      ├── Parent DO       — room-scoped, peer registry, signaling
+      └── Shard DOs       — overflow peers (up to 8 shards, ~720 capacity)
+```
+
+### Y.js Document Schema
+
+```
+FortressRoomDoc
+  ├── meta:            Y.Map        — room metadata, type, access, billing mode
+  ├── participants:     Y.Map        — keyed by pubkey
+  ├── output:         Y.Text       — character-level streaming output
+  ├── outputItems:     Y.Map        — per-item metadata, receipts, annotations
+  ├── receiptIds:      Y.Array      — hash-chained receipt IDs
+  ├── templates:       Y.Array      — saved prompt templates
+  ├── presence:        Y.Map        — peer cursor, tool/mode, online state
+  ├── spectatorChat:   Y.Array      — chat messages
+  ├── proposals:       Y.Map        — pending proposals with approve/reject state
+  └── annotations:     Y.Map        — viewport pins with resolved state
+```
+
+---
+
+## Supported Providers
+
+| Provider | Streaming | Models |
+|---|---|---|
+| OpenAI | Yes | GPT-4o, o3, o4-mini |
+| Anthropic | Yes | Claude 4 Sonnet, Opus, Haiku |
+| Google | Yes | Gemini 2.0 Flash, Pro |
+| Minimax | Yes | abab, MX-T2V, SDXL |
+| Groq | Yes | Llama 3.3, Mixtral |
+| OpenRouter | Yes | 100+ models |
 
 ---
 
 ## Getting Started
 
-### As a Participant (no keys needed)
-
-1. Open [fatedfortress.com](https://fatedfortress.com)
-2. Click `SPECTATE` on any public room
-3. Watch output stream live — no account, no key, no cost
-4. To generate: enter your own API key (optional)
-5. Click `PUBLISH >>>` — get a permanent URL
-
-### As a Host
-
-1. Press `/` to open the Palette
-2. Type `create [category] room [free|paid $5]`
-3. Share the room URL
-4. Optionally contribute your key to the liquidity pool
-
-### Running Locally
+### Run Locally
 
 ```bash
-# Clone
 git clone https://github.com/Ghostmonday/fatedfortress-v2.git
 cd fatedfortress-v2
 
-# Install dependencies
+# Install
 npm install
-
-# Build the web SPA (outputs to apps/web/dist/)
-npm run build --workspace=apps/web
 
 # Start web dev server
 npm run dev --workspace=apps/web
 # → http://localhost:5173
 
-# Deploy the relay worker (Cloudflare Wrangler)
+# Deploy relay worker (Cloudflare Wrangler)
 cd apps/relay && wrangler deploy
 ```
 
@@ -198,86 +243,47 @@ VITE_FF_ORIGIN=https://fatedfortress.com
 
 ---
 
-## Architecture
-
-### Relay DO Sharding
-
-The Durable Object is room-scoped (`env.RELAY.idFromName(roomId)`). When the parent DO exceeds 80 connected peers, new connections receive a `{ type: "REDIRECT", shardUrl }` message and reconnect to a shard DO (`roomId-shard-0` through `roomId-shard-7`). Shards notify the parent of their peer registry via `POST /internal/register-shard-peer`, enabling O(1) cross-shard message routing via `POST /_relay/forward`. Maximum room capacity: ~80 × 9 = 720 peers.
-
-### Y.js Document Schema
-
-```
-FortressRoomDoc
-  ├── meta:          Y.Map        — room metadata, access, price, system prompt
-  ├── participants:  Y.Map        — keyed by pubkey (Phase 5 L12 migration from Y.Array)
-  ├── output:        Y.Text       — character-level streaming output
-  ├── receiptIds:    Y.Array      — hash-chained receipt IDs
-  ├── templates:     Y.Array      — saved prompt templates
-  ├── presence:      Y.Map        — peer cursor + online state
-  └── spectatorChat: Y.Array      — spectator chat messages
-```
-
-Participants moved from `Y.Array` to `Y.Map<pubkey, ParticipantEntry>` in Phase 5 — eliminating the CRDT delete/insert race condition under concurrent `updateParticipant` calls.
-
-### Stream Cache (Mid-Session Resume)
-
-On host drop mid-generation, the `handoff.ts` stream cache captures chunks as they arrive. The cache key is `SHA-256(model | systemPrompt | prompt)`. If the host rejoins within 10 minutes, the accumulated text is prepended to the generation input with a `--- resume ---` separator, so the new host continues from where the stream was cut.
-
----
-
 ## Security
 
 | Property | Mechanism |
 |---|---|
-| Keys never leave the browser | Sandboxed worker iframe, CSP allow-list per provider origin, `getRawKey()` has no `postMessage` export |
+| Keys never leave the browser | Sandboxed worker iframe, CSP allow-list per provider |
 | Keys never at rest in plaintext | Argon2id + AES-256-GCM, passphrase-derived wrapping key |
-| Worker is verifiable | SHA-256 hash over minified bundle, recorded at build time + SRI |
+| Worker is verifiable | SHA-256 hash over minified bundle, SRI |
 | Budget tokens are unforgeable | Ed25519 signature by host's non-extractable key |
 | Receipts are tamper-evident | SHA-256 output hash + Ed25519 signature, hash-chained |
 | Participant updates are CRDT-safe | `Y.Map` keyed by pubkey — no delete/insert races |
-| No localStorage crashes in embeds | `safeStorage` wrapper probes once; falls back to in-memory Map |
+| No localStorage crashes in embeds | `safeStorage` wrapper probes once; falls back to in-memory |
 | No base64 stack overflow on large docs | Chunked encoding/decoding in 8,192-byte blocks |
-
----
-
-## Supported Providers
-
-| Provider | Streaming | Models |
-|---|---|---|
-| OpenAI | Yes | GPT-4o, o3, o4-mini |
-| Anthropic | Yes | Claude 4 Sonnet, Opus, Haiku |
-| Google | Yes | Gemini 2.0 Flash, Pro |
-| Minimax | Yes | abab, MX-T2V, SDXL |
-| Groq | Yes | Llama 3.3, Mixtral |
-| OpenRouter | Yes | 100+ models |
 
 ---
 
 ## Roadmap
 
-| Version | What's Next |
+| Version | Status |
 |---|---|
-| **v1.1** | ✅ Shipped — P2P sync, presence cursors, liquidity pool, fuel gauge, spectate mode |
-| **v1.5** | ✅ Shipped — Y.Map participants, OPFS caching, command trie ghost text, stream resume |
-| **v2** | here.now native integration, LiveKit voice, shared canvas overlays, template marketplace |
-| **v3** | Mobile PWA, `ff` CLI, Tauri desktop app |
+| **v1.0** | ✅ P2P sync, presence, liquidity pool, fuel gauge, spectate mode |
+| **v1.1** | ✅ Personal API keys, per-user billing modes |
+| **v1.5** | ✅ Command palette with trie ghost text, OPFS caching, stream resume |
+| **v2.0** | 🚧 Tool/mode presence broadcast, annotation pins, activity feed |
+| **v2.1** | 📋 Proposal system, generation queue, scene snapshots |
+| **v2.5** | 📋 Review checklists, approval workflows, focus mode |
+| **v3** | 📋 here.now native integration, shared canvas overlays, reference board |
 
 ---
 
 ## Contributing
 
-The codebase is designed for modular, parallel development. Each adapter, component, and protocol piece is self-contained.
+Each adapter, component, and protocol piece is self-contained. Inline comments in `ydoc.ts`, `budget.ts`, and `relay/src/index.ts` cover the full data model and protocol invariants.
 
 ```
 apps/
-  web/       — Vite + React SPA (here.now hosted)
-  worker/     — Sandboxed iframe (keys.* origin)
-  relay/      — Cloudflare Durable Object (stateless fan-out + sharding)
+  web/       — Vite SPA, vanilla TypeScript + DOM, no framework
+  worker/    — Sandboxed iframe (keys.* origin)
+  relay/     — Cloudflare Durable Object (stateless fan-out + sharding)
 packages/
-  protocol/   — Shared types, crypto helpers, budget token schemas
+  protocol/  — Shared types, crypto helpers, budget token schemas
 ```
-
-Read the inline comments in `ydoc.ts`, `budget.ts`, and `relay/src/index.ts` for the full data model and protocol invariants before submitting PRs.
 
 ---
 

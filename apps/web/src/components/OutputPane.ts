@@ -19,8 +19,24 @@ export class OutputPane {
   }
 
   mount(el: HTMLElement): void {
+    this.container.innerHTML = `
+      <div class="ff-output-header">
+        <div class="ff-output-title">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M2 3h12v9H2V3zm1 1v7h10V4H3zm1 1h8v1H4V5zm0 2h6v1H4V7z"/>
+          </svg>
+          <span class="ff-label">OUTPUT</span>
+        </div>
+        <div class="ff-output-readonly-badge">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a1 1 0 0 1 .707.293l5 5a1 1 0 0 1 0 1.414l-1.5 1.5A1 1 0 0 1 7 11.414L5.586 10 4.5 11.086A1 1 0 0 1 3.086 9.5L4.5 8.086 3.086 6.672A1 1 0 0 1 4.5 5.158L5.586 6.644 7 5.228A1 1 0 0 1 8 5a1 1 0 0 1 .707.293L8 9.586l3.293-3.293A1 1 0 0 1 12 6a1 1 0 0 1 0 2 1 1 0 0 1-.707.293L8 11.586l-2.293-2.293A1 1 0 0 1 5 8a1 1 0 0 1 .707-.293L8 10l2.293-2.293A1 1 0 0 1 11 7.5l-1.5 1.5a1 1 0 0 1-1.414 0L7.5 8.414 6.086 9.828A1 1 0 0 1 5.086 11.5L7 9.586 8.5 11.086a1 1 0 0 1 0-1.414l1.5-1.5A1 1 0 0 1 11 8a1 1 0 0 1 .707.293L13 6.586 8 1.586 3.293 6.293A1 1 0 0 1 2 6a1 1 0 0 1 0-2 1 1 0 0 1 .707.293z"/>
+          </svg>
+          <span class="ff-label">READ-ONLY</span>
+        </div>
+      </div>
+    `;
     this.outputEl = document.createElement("div");
-    this.outputEl.className = "output-content";
+    this.outputEl.className = "ff-output-content";
     this.container.appendChild(this.outputEl);
     el.appendChild(this.container);
 
@@ -134,7 +150,7 @@ export class OutputPane {
   }
 
   private renderEmpty(): void {
-    this.outputEl.innerHTML = `<pre class="output-placeholder">Waiting for generation...</pre>`;
+    this.outputEl.innerHTML = `<pre class="ff-output-placeholder">Waiting for generation...</pre>`;
   }
 
   private escape(s: string): string {

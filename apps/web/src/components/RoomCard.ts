@@ -23,50 +23,72 @@ export class RoomCard {
     const truncatedHost = this.room.hostPubkey.length > 8
       ? this.room.hostPubkey.slice(0, 8) + "…"
       : this.room.hostPubkey;
-    const priceBadge = this.room.access === "paid"
-      ? `<span class="price-badge">$${this.room.price} USDC</span>`
-      : `<span class="price-badge free">FREE</span>`;
-
-    const participants = this.room.participantCount ?? 0;
-    const spectators = this.room.spectatorCount ?? 0;
-    const countLabel = participants > 0
-      ? `${participants} ▲ ${spectators} ◉`
-      : `${spectators} ◉ spectating`;
 
     const fuelPct = this.room.fuelLevel ?? 100;
-    const fuelBar = `
-      <div class="room-card-fuel">
-        <div class="fuel-bar">
-          <div class="fuel-fill" style="width:${fuelPct}%"></div>
-        </div>
-        <span class="fuel-label">${Math.round(fuelPct * 100)}%</span>
-      </div>`;
+    const fuelColor = fuelPct <= 0
+      ? "var(--ff-tertiary)"
+      : fuelPct < 20
+        ? "var(--ff-secondary-dim)"
+        : "var(--ff-primary)";
 
-    const card = document.createElement("div");
-    card.className = "room-card";
+    const participants = this.room.participantCount ?? 0;
+    const maxParticipants = 12;
+    const spectators = this.room.spectatorCount ?? 0;
+
+    const isEmpty = fuelPct <= 0 && participants === 0;
+
+    const card = document.createElement("article");
+    card.className = `ff-room-card${isEmpty ? " ff-room-card--empty" : ""}`;
     card.innerHTML = `
-      <div class="room-card-header">
-        <span class="category-glyph">[${this.room.category.toUpperCase().slice(0, 4)}]</span>
-        <span class="room-name">${this.escapeHtml(this.room.name)}</span>
+      <div class="ff-rc-header">
+        <div class="ff-rc-title-row">
+          <h3 class="ff-rc-name">${this.escapeHtml(this.room.name.toUpperCase())}</h3>
+          <span class="ff-rc-category ff-label">#${this.room.category.slice(0, 4).toUpperCase()}</span>
+        </div>
+        <p class="ff-rc-host ff-label">HOST: ${this.escapeHtml(truncatedHost)}</p>
       </div>
-      <div class="room-meta">
-        <span class="host-pubkey">@${this.escapeHtml(truncatedHost)}</span>
-        ${priceBadge}
+
+      <div class="ff-rc-fuel">
+        <div class="ff-rc-fuel-header">
+          <span class="ff-label" style="color: ${fuelColor}">INTEGRITY</span>
+          <span class="ff-label" style="color: ${fuelColor}">${Math.round(fuelPct)}%</span>
+        </div>
+        <div class="ff-rc-fuel-bar">
+          <div class="ff-rc-fuel-fill" style="width:${fuelPct}%; background:${fuelColor}"></div>
+        </div>
       </div>
-      <div class="room-counts">${countLabel}</div>
-      ${fuelBar}
-      <div class="room-actions">
-        <button class="btn-join" data-room="${this.room.id}">JOIN</button>
-        <button class="btn-spectate" data-room="${this.room.id}">SPECTATE</button>
+
+      <div class="ff-rc-participants">
+        <svg class="ff-rc-group-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" width="14" height="14">
+          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 8H3a1 1 0 0 1-1-1v-1a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1z"/>
+        </svg>
+        <span class="ff-label">${participants} / ${maxParticipants} Users</span>
+      </div>
+
+      <div class="ff-rc-actions">
+        <button
+          class="ff-rc-btn ff-rc-btn--join"
+          data-room="${this.room.id}"
+          ${isEmpty ? "disabled" : ""}>
+          JOIN
+        </button>
+        <button
+          class="ff-rc-btn ff-rc-btn--spectate"
+          data-room="${this.room.id}"
+          ${isEmpty ? "disabled" : ""}>
+          SPECTATE
+        </button>
       </div>
     `;
 
-    card.querySelector(".btn-join")?.addEventListener("click", () => {
+    card.querySelector(".ff-rc-btn--join")?.addEventListener("click", (e) => {
+      if (isEmpty) return;
       window.history.pushState({}, "", `/room/${this.room.id}`);
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
 
-    card.querySelector(".btn-spectate")?.addEventListener("click", () => {
+    card.querySelector(".ff-rc-btn--spectate")?.addEventListener("click", (e) => {
+      if (isEmpty) return;
       window.history.pushState({}, "", `/spectate/${this.room.id}`);
       window.dispatchEvent(new PopStateEvent("popstate"));
     });

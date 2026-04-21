@@ -25,7 +25,7 @@ const STATE_CONFIG: Record<ConnState, { dot: string; label: string; color: strin
   connecting: { dot: "⏳", label: "CONNECTING", color: "#94a3b8" },
   p2p:        { dot: "🟢", label: "P2P",        color: "#22c55e" },
   turn:       { dot: "🟡", label: "TURN",       color: "#eab308" },
-  failed:     { dot: "🔴", label: "OFFLINE",    color: "#ef4444" },
+  failed:     { dot: "!",  label: "OFFLINE",    color: "#f59e0b" },
 };
 
 /**
@@ -126,7 +126,7 @@ export class ConnectionBadge {
     const { dot, label, color } = STATE_CONFIG[this.state];
     this.el.textContent = `${dot} ${label}`;
     this.el.style.borderColor = color;
-    this.el.style.color = "#fff";
+    this.el.style.color = "var(--ff-on-surface)";
   }
 
   private applyStyles(): void {
@@ -135,7 +135,7 @@ export class ConnectionBadge {
       top: "8px",
       right: "8px",
       background: "rgba(0,0,0,0.72)",
-      color: "#fff",
+      color: "var(--ff-on-surface)",
       fontSize: "11px",
       padding: "2px 8px",
       border: "1px solid #94a3b8",

@@ -5,6 +5,7 @@ node_modules/
 dist/
 .dist/
 *.local
+.vite/
 
 # Environment files — NEVER commit API keys or secrets
 .env

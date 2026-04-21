@@ -1,16 +1,15 @@
 /**
  * Palette UI — overlay, inline ghost completion (.palette-ghost / .ghost-typed / .ghost-suffix),
- * command list. Tokens use global --ff-* where noted.
- * Phase 4: .ghost-suffix reads --color-text-faint when set (design tokens).
+ * command list. Sovereign Terminal dark theme.
  */
 
 .palette-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(28, 28, 28, 0.82);
+  background-color: rgba(14, 14, 14, 0.88);
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 16px 16px;
   background-position: 0 0;
   backdrop-filter: blur(6px);
@@ -27,22 +26,18 @@
 }
 
 @keyframes palette-open {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .palette,
 .palette-box {
-  background: #fff;
-  border: 2px solid #0a0a0a;
+  background: var(--ff-surface-highest);
+  border: 1px solid var(--ff-border-girder);
   border-radius: 0;
   width: min(640px, calc(100vw - calc(var(--ff-step, 4px) * 2)));
   max-width: 92vw;
-  box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.22);
+  box-shadow: 4px 4px 0 var(--ff-border);
   overflow: hidden;
 }
 
@@ -51,13 +46,13 @@
   position: relative;
   display: flex;
   align-items: center;
-  background: #fafaf8;
-  border-bottom: 2px solid #0a0a0a;
+  background: var(--ff-surface-low);
+  border-bottom: 1px solid var(--ff-border-girder);
   transition: background-color 70ms ease;
 }
 
 .palette-input-wrap:focus-within {
-  background: #fff;
+  background: var(--ff-surface-container);
 }
 
 .palette-ghost {
@@ -79,9 +74,9 @@
   color: transparent;
 }
 
-/* Ghost prediction — faint ink (also --color-text-faint if defined on :root) */
+/* Ghost prediction — phosphor dim green */
 .ghost-suffix {
-  color: var(--color-text-faint, var(--ff-muted, #5c5c5c));
+  color: var(--ff-secondary-dim);
 }
 
 .palette-input {
@@ -96,13 +91,13 @@
   outline: none;
   box-sizing: border-box;
   background: transparent;
-  color: var(--ff-ink, #0a0a0a);
-  caret-color: var(--ff-ink, #0a0a0a);
+  color: var(--ff-on-surface);
+  caret-color: var(--ff-primary);
   transition: background-color 70ms ease;
 }
 
 .palette-input::placeholder {
-  color: #888;
+  color: var(--ff-muted);
 }
 
 .palette-list,
@@ -123,6 +118,7 @@
   cursor: pointer;
   font-size: 12px;
   line-height: 1.3;
+  color: var(--ff-on-surface);
   border-left: 3px solid transparent;
   border-radius: 0;
   transition:
@@ -135,60 +131,60 @@
 .palette-item:hover,
 .palette-result:hover,
 .palette-result:focus {
-  background: #ecece8;
+  background: var(--ff-surface-container);
   outline: none;
 }
 
 .palette-result-match {
-  color: var(--ff-ink, #0a0a0a);
+  color: var(--ff-on-surface);
   font-weight: 600;
 }
 
 .palette-result--empty {
-  color: #888;
+  color: var(--ff-muted);
   cursor: default;
   font-style: italic;
 }
 
 .palette-item.selected {
-  background: #e0e0da;
-  border-left-color: #0a0a0a;
+  background: var(--ff-surface-bright);
+  border-left-color: var(--ff-primary);
   padding-left: 9px;
   font-weight: 600;
 }
 
 .palette-item-resolved {
-  background: #dde8dd;
+  background: rgba(34, 197, 94, 0.08);
 }
 
 .palette-item-label {
-  color: #111;
+  color: var(--ff-on-surface);
 }
 
 .palette-item-conf {
-  color: #666;
+  color: var(--ff-muted);
   font-size: 10px;
   letter-spacing: 0.02em;
 }
 
 .palette-hint {
   padding: 5px 10px;
-  color: #666;
+  color: var(--ff-muted);
   font-size: 10px;
   letter-spacing: 0.04em;
-  border-top: 1px dashed #b0b0ac;
+  border-top: 1px dashed var(--ff-border-girder);
 }
 
 .palette-ghost-suggestions {
-  border-top: 2px solid #0a0a0a;
+  border-top: 1px solid var(--ff-border-girder);
   padding: 4px 6px;
-  background: #f4f4f2;
+  background: var(--ff-surface-low);
 }
 
 .ghost-item {
   display: flex;
   justify-content: space-between;
-  color: #777;
+  color: var(--ff-muted);
   font-size: 10px;
   cursor: pointer;
   padding: 3px 4px;
@@ -201,9 +197,9 @@
 }
 
 .ghost-item:hover {
-  color: #0a0a0a;
-  background: #e8e8e4;
-  border-left-color: #9a1818;
+  color: var(--ff-secondary);
+  background: var(--ff-surface-container);
+  border-left-color: var(--ff-primary);
 }
 
 .ghost-label {

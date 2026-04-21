@@ -1,21 +1,21 @@
-/* apps/web/src/styles/demo-banner.css — NEW FILE */
+/* apps/web/src/styles/demo-banner.css — Sovereign Terminal dark theme */
 
 .ff-demo-banner {
   position: fixed;
   inset-inline: 0;
   top: 0;
   z-index: 1000;
-  background: var(--ff-paper);
-  border-bottom: 1px solid var(--ff-border);
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+  background: var(--ff-surface-high);
+  border-bottom: 1px solid var(--ff-border-girder);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
   padding: 8px 16px;
   font-size: 12px;
-  color: var(--ff-ink);
+  color: var(--ff-on-surface);
 }
 
 .ff-demo-banner-blocked {
-  background: #fff8f0;
-  border-color: var(--ff-danger);
+  background: var(--ff-surface-high);
+  border-color: var(--ff-secondary);
 }
 
 .ff-demo-banner-content {
@@ -28,12 +28,12 @@
 
 .ff-demo-banner-icon {
   font-size: 16px;
-  color: var(--ff-term-fg);
+  color: var(--ff-secondary);
   flex-shrink: 0;
 }
 
 .ff-demo-banner-blocked .ff-demo-banner-icon {
-  color: var(--ff-danger);
+  color: var(--ff-secondary-dim);
 }
 
 .ff-demo-banner-text {
@@ -43,13 +43,14 @@
 
 .ff-demo-banner-text strong {
   font-weight: 700;
+  color: var(--ff-on-surface);
 }
 
 .ff-demo-banner-cta {
   padding: 4px 10px;
-  background: var(--ff-ink);
-  color: #fff;
-  border: 1px solid var(--ff-ink);
+  background: var(--ff-primary);
+  color: var(--ff-on-primary);
+  border: 1px solid var(--ff-primary);
   font-size: 11px;
   font-weight: 700;
   font-family: inherit;
@@ -59,7 +60,8 @@
 }
 
 .ff-demo-banner-cta:hover {
-  background: #222;
+  background: var(--ff-primary-dim);
+  border-color: var(--ff-primary-dim);
 }
 
 .ff-demo-banner-dismiss {
@@ -69,7 +71,7 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--ff-border);
+  border: 1px solid var(--ff-border-girder);
   color: var(--ff-muted);
   font-size: 14px;
   cursor: pointer;
@@ -78,12 +80,12 @@
 }
 
 .ff-demo-banner-dismiss:hover {
-  background: var(--ff-ink);
-  color: #fff;
-  border-color: var(--ff-ink);
+  background: var(--ff-surface-highest);
+  color: var(--ff-on-surface);
+  border-color: var(--ff-on-surface);
 }
 
-/* ── Consent Modal (Priority 2) ──────────────────────────────── */
+/* ── Consent Modal (Priority 2) ─────────────────────────────── */
 .ff-consent-modal {
   position: fixed;
   inset: 0;
@@ -96,7 +98,7 @@
 .ff-consent-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(28, 28, 28, 0.72);
+  background: rgba(28, 28, 28, 0.82);
   backdrop-filter: blur(4px);
 }
 
@@ -104,9 +106,10 @@
   position: relative;
   max-width: 480px;
   width: calc(100% - 32px);
-  background: var(--ff-paper);
-  border: 2px solid var(--ff-border);
+  background: var(--ff-surface-highest);
+  border: 1px solid var(--ff-border-girder);
   padding: 24px;
+  box-shadow: 4px 4px 0 var(--ff-border);
 }
 
 .ff-consent-modal-content h2 {
@@ -114,14 +117,14 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   margin: 0 0 12px;
-  color: var(--ff-ink);
+  color: var(--ff-on-surface);
 }
 
 .ff-consent-modal-content p {
   font-size: 12px;
   line-height: 1.5;
   margin: 0 0 10px;
-  color: var(--ff-ink);
+  color: var(--ff-on-surface);
 }
 
 .ff-consent-modal-content p strong {
@@ -151,39 +154,40 @@
 
 .ff-consent-modal-actions button[data-action="leave"],
 .ff-consent-modal-actions button[data-action="spectate"] {
-  background: #fff;
-  border: 1px solid var(--ff-border);
-  color: var(--ff-ink);
+  background: transparent;
+  border: 1px solid var(--ff-border-girder);
+  color: var(--ff-on-surface);
 }
 
 .ff-consent-modal-actions button[data-action="leave"]:hover,
 .ff-consent-modal-actions button[data-action="spectate"]:hover {
-  background: var(--ff-paper);
+  background: var(--ff-surface-high);
 }
 
 .ff-consent-modal-actions .ff-primary {
-  background: var(--ff-ink);
-  border: 1px solid var(--ff-ink);
-  color: #fff;
+  background: var(--ff-primary);
+  border: 1px solid var(--ff-primary);
+  color: var(--ff-on-primary);
 }
 
 .ff-consent-modal-actions .ff-primary:hover {
-  background: #222;
+  background: var(--ff-primary-dim);
+  border-color: var(--ff-primary-dim);
 }
 
 @media (max-width: 600px) {
   .ff-consent-modal-actions {
     flex-direction: column-reverse;
-  align-items: stretch;
-  gap: 6px;
-  margin-top: 12px;
-  margin-bottom: 0;
-  margin-left: 0;
-  margin-right: 0;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  max-width: 100%;
-}
+    align-items: stretch;
+    gap: 6px;
+    margin-top: 12px;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
 
   .ff-consent-modal-actions button {
     width: 100%;

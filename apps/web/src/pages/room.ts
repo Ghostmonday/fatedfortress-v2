@@ -431,7 +431,7 @@ function mountSpectatorRoom(doc: FortressRoomDoc, container: HTMLElement): () =>
   container.appendChild(splitPane);
 
   const chatEl = document.createElement("div");
-  chatEl.className = "spectator-chat";
+  chatEl.className = "spectator-chat ff-spectator-chat";
   const chatView = new SpectatorChatView(doc);
   chatView.mount(chatEl);
   splitPane.querySelector(".room-control-pane")!.appendChild(chatEl);
@@ -519,34 +519,36 @@ export async function mountRoom(
   const isSpectator = opts.spectate ?? participant?.isSpectator ?? false;
   const demoMode = entry.mode === "demo";
 
-  // Create layout
+  // Create layout — Sovereign Terminal split (left control, right terminal)
   const splitPane = document.createElement("div");
-  splitPane.className = "room-split";
+  splitPane.className = "ff-room-split";
   splitPane.innerHTML = `
-    <div class="room-header">
-      <span class="room-title">${(doc.meta.get("name") as string) ?? "Room"}</span>
-      ${isSpectator ? '<span class="spectator-badge">SPECTATING</span>' : ""}
-      <button class="btn-leave" id="btn-leave">LEAVE</button>
+    <div class="ff-room-header">
+      <span class="ff-room-title">${(doc.meta.get("name") as string)?.toUpperCase() ?? "ROOM"}</span>
+      ${isSpectator ? '<span class="ff-spectator-badge">SPECTATING</span>' : ""}
+      <button class="ff-btn-leave" id="btn-leave">LEAVE</button>
     </div>
-    <div class="room-control-pane"></div>
-    <div class="room-output-pane"></div>
+    <div class="ff-room-body">
+      <section class="ff-room-control-pane"></section>
+      <section class="ff-room-output-pane"></section>
+    </div>
   `;
   container.appendChild(splitPane);
 
   let controlPane: ControlPane | null = null;
   if (isSpectator) {
     const chatEl = document.createElement("div");
-    chatEl.className = "spectator-chat";
+    chatEl.className = "spectator-chat ff-spectator-chat";
     const chatView = new SpectatorChatView(doc);
     chatView.mount(chatEl);
-    splitPane.querySelector(".room-control-pane")!.appendChild(chatEl);
+    splitPane.querySelector(".ff-room-control-pane")!.appendChild(chatEl);
   } else {
-    const controlEl = splitPane.querySelector(".room-control-pane")! as HTMLElement;
+    const controlEl = splitPane.querySelector(".ff-room-control-pane")! as HTMLElement;
     controlPane = new ControlPane(doc, demoMode);
     controlPane.mount(controlEl);
   }
 
-  const outputEl = splitPane.querySelector(".room-output-pane")! as HTMLElement;
+  const outputEl = splitPane.querySelector(".ff-room-output-pane")! as HTMLElement;
   const outputPane = new OutputPane(doc);
   outputPane.mount(outputEl);
 

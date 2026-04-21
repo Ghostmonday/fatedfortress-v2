@@ -6,12 +6,12 @@
  * Renders a horizontal strip of participant avatars in the room header.
  * Each avatar is a deterministic SVG generated from the participant's avatarSeed.
  * A colored dot overlays the avatar corner to indicate presence state:
- *   active    → #22c55e (green)
- *   idle      → #eab308 (yellow)
- *   away      → #f97316 (orange)
- *   generating→ #3b82f6 (blue, pulsing)
- *   error     → #ef4444 (red)
- *   disconnected → #6b7280 (grey, dimmed)
+ *   active      → #22c55e (green)
+ *   idle        → #eab308 (yellow)
+ *   away        → #f97316 (orange)
+ *   generating  → #3b82f6 (blue, pulsing)
+ *   error       → #f59e0b (amber — terminal alert, not red)
+ *   disconnected→ #6b7280 (grey, dimmed)
  *
  * Tooltip on hover shows: displayName · state
  *
@@ -28,7 +28,7 @@ const STATE_COLORS: Record<PresenceState, string> = {
   idle:        "#eab308",
   away:        "#f97316",
   generating:  "#3b82f6",
-  error:       "#ef4444",
+  error:       "#f59e0b",
   disconnected:"#6b7280",
 };
 

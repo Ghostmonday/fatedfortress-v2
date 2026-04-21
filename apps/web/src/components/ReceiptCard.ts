@@ -17,6 +17,8 @@ export interface ReceiptData {
   outputUrls?: string[];
   /** SHA-256 of reference image used to generate this receipt (image rooms only) */
   referenceImageHash?: string;
+  /** Image output URL (for display preview) */
+  previewUrl?: string;
 }
 
 export class ReceiptCard {
@@ -27,96 +29,93 @@ export class ReceiptCard {
   }
 
   mount(el: HTMLElement): void {
+    const shortId = this.receipt.id.slice(0, 10).toUpperCase();
     const time = this.receipt.timestamp
       ? new Date(this.receipt.timestamp).toLocaleString(undefined, {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
         })
-      : "·· pending ··";
+      : "--:--:--";
     const forkBlock =
       this.receipt.forkLines?.trim() ?? this.defaultForkLines();
     const modelLabel = this.receipt.model ?? "unknown";
     const hashDisplay = this.receipt.hash ?? "PENDING_DIGEST";
-    const promptPreview = this.receipt.prompt
-      ? `<p class="receipt-prompt">${this.escapeHtml(this.receipt.prompt.slice(0, 140))}${this.receipt.prompt.length > 140 ? "…" : ""}</p>`
-      : "";
 
     const isImage = this.receipt.type === "image";
+    const hasPreview = !!this.receipt.previewUrl;
 
     const card = document.createElement("article");
-    card.className = "receipt-card";
+    card.className = "ff-receipt-card";
     card.innerHTML = `
-      <div class="receipt-card__ribbon">
-        <span>SIGNED RECEIPT · LOCAL VAULT</span>
-        <span class="receipt-card__ribbon-end">IMMUTABLE</span>
-      </div>
-      <div class="receipt-card__body">
-        <pre class="receipt-tree">${this.escapeHtml(forkBlock)}</pre>
-        <div class="receipt-meta">
-          <span class="receipt-model">${this.escapeHtml(modelLabel)}</span>
-          <span class="receipt-time">${this.escapeHtml(time)}</span>
+      ${isImage && hasPreview ? `
+      <div class="ff-rc-image-area">
+        <img
+          class="ff-rc-image"
+          src="${this.escapeAttr(this.receipt.previewUrl ?? "")}"
+          alt="${this.escapeAttr(this.receipt.prompt ?? "Generated output")}"
+          loading="lazy"
+        />
+        <div class="ff-rc-gen-badge">${shortId}</div>
+        <div class="ff-rc-image-overlay">
+          <button class="ff-rc-action-btn" title="Fork this generation" data-action="fork">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+              <path d="M6 2l4 4-4 4V8H2V4h4V2zm6 6l-4-4v4H4v4h4v-2l4-4-4 4z"/>
+            </svg>
+          </button>
+          <button class="ff-rc-action-btn" title="Download image" data-action="download">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+              <path d="M8 12l-4-4h3V2h2v6h3l-4 4zM2 14h12v1H2z"/>
+            </svg>
+          </button>
         </div>
-        <div class="receipt-digest-label">OUTPUT DIGEST</div>
-        <pre class="receipt-hash">${this.escapeHtml(hashDisplay)}</pre>
-        ${promptPreview}
-        ${isImage ? `
-        <div class="receipt-card__actions">
-          <button class="receipt-publish-btn" type="button">Publish to here.now</button>
-          <span class="receipt-publish-status" id="publish-status-${this.receipt.id}"></span>
-        </div>` : ""}
+      </div>` : `
+      <div class="ff-rc-image-area ff-rc-image-area--placeholder">
+        <svg class="ff-rc-broken-img" viewBox="0 0 16 16" fill="currentColor" width="32" height="32">
+          <path d="M2 2h12l-1.5 1.5-3 3-4.5 4.5L3 12v2H1V2h1zm3 4l2 2-2 2-2-2 2-2zm5 5l2 2-2 2-2-2 2-2z"/>
+        </svg>
+        <div class="ff-rc-gen-badge">${shortId}</div>
+      </div>`}
+
+      <div class="ff-rc-body">
+        <div class="ff-rc-title-row">
+          <p class="ff-rc-prompt">${this.escapeHtml(this.receipt.prompt?.slice(0, 80) ?? "")}</p>
+        </div>
+        <div class="ff-rc-footer">
+          <span class="ff-rc-time">${time}</span>
+          <button class="ff-rc-fork-btn" title="Lineage Fork" data-action="fork">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+              <path d="M6 2l4 4-4 4V8H2V4h4V2zm6 6l-4-4v4H4v4h4v-2l4-4-4 4z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     `;
 
-    if (isImage) {
-      const publishBtn = card.querySelector(".receipt-publish-btn") as HTMLButtonElement;
-      const statusEl = card.querySelector(`#publish-status-${this.receipt.id}`) as HTMLElement;
-      publishBtn?.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        if (!publishBtn || !statusEl) return;
-        publishBtn.disabled = true;
-        statusEl.textContent = "Publishing…";
-        try {
-          // Re-archive from OPFS: fetch each opfs:// URL, re-upload to here.now
-          const urls = this.receipt.outputUrls ?? [];
-          const publishedUrls: string[] = [];
-          for (const url of urls) {
-            if (url.startsWith("opfs://")) {
-              const resolved = await resolveOpfsUrl(url);
-              if (!resolved) continue;
-              const res = await fetch(resolved);
-              const blob = await res.blob();
-              // Dynamically import archiveAndUpload to keep bundle split
-              const { archiveAndUpload } = await import("../net/archive.js");
-              const permUrl = await archiveAndUpload(
-                blob,
-                "receipt", // roomId
-                `image-${Date.now()}.png`
-              );
-              if (permUrl) publishedUrls.push(permUrl);
-            } else {
-              // Already a permanent URL
-              publishedUrls.push(url);
-            }
-          }
-          if (publishedUrls.length > 0) {
-            statusEl.textContent = `Published ${publishedUrls.length} image(s)!`;
-            statusEl.style.color = "green";
-          } else {
-            statusEl.textContent = "No images to publish";
-          }
-        } catch (err) {
-          statusEl.textContent = "Publish failed";
-          statusEl.style.color = "red";
-          console.error("[ReceiptCard] publish failed:", err);
-        } finally {
-          publishBtn.disabled = false;
-        }
-      });
-    }
+    // Fork action
+    const forkBtn = card.querySelector("[data-action=fork]");
+    forkBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.dispatchEvent(new CustomEvent("receipt:focus", { detail: { id: this.receipt.id } }));
+    });
 
+    // Download action (image only)
+    const downloadBtn = card.querySelector("[data-action=download]");
+    downloadBtn?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const url = this.receipt.previewUrl;
+      if (!url) return;
+      try {
+        const resolved = url.startsWith("opfs://") ? await resolveOpfsUrl(url) : url;
+        const a = document.createElement("a");
+        a.href = resolved ?? url;
+        a.download = `ff-image-${this.receipt.id}.png`;
+        a.click();
+      } catch (err) {
+        console.error("[ReceiptCard] download failed:", err);
+      }
+    });
+
+    // Click on card body focuses receipt
     card.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("receipt:focus", { detail: { id: this.receipt.id } }));
     });
@@ -140,9 +139,13 @@ export class ReceiptCard {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
+
+  private escapeAttr(str: string): string {
+    return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
 }
 
-/** Build richer fork graph text from a flat receipt list (newest-first or any order). */
+/* Build richer fork graph text from a flat receipt list (newest-first or any order). */
 export function buildForkLines(receipt: Receipt, all: Receipt[]): string {
   const idS = receipt.id.slice(0, 10);
   if (!receipt.parentId) {
