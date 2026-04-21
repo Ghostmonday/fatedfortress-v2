@@ -12,3 +12,6 @@ declare const __WORKER_ORIGIN__: string;
 
 /** Injected by Vite define — the relay registry URL (https://relay.fatedfortress.com in prod). */
 declare const __RELAY_REGISTRY_URL__: string;
+
+/** Injected by Vite define — Sentry DSN for Zone 2 (vault worker). */
+declare const __SENTRY_DSN_WORKER__: string;

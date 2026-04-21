@@ -7,10 +7,11 @@
  *   - Manual chunks: isolate hash-wasm in its own chunk (required for WASM)
  *   - No minification of the entry chunk (preserves SRI hash stability)
  *   - Output: dist/ with index.html + assets/
- *   - define: inject FF_ORIGIN and WORKER_ORIGIN from env
+ *   - define: inject FF_ORIGIN, WORKER_ORIGIN, and SENTRY_DSN_WORKER from env
  *
- * The hash-wasm import is pinned to a specific version+hash in package.json.
- * Vite's rollupOptions.input determines chunk splitting for reproducibility.
+ * New define (Sentry Zone 2):
+ *   __SENTRY_DSN_WORKER__  — Sentry DSN for vault worker, from VITE_SENTRY_DSN_WORKER env var.
+ *                            Empty string → Sentry.init() is a no-op (SDK self-disables).
  */
 
 import path from "node:path";
@@ -23,10 +24,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@fatedfortress/protocol": path.resolve(__dirname, "../../packages/protocol/src/index.ts"),
+      "@fatedfortress/sentry-utils": path.resolve(__dirname, "../../packages/sentry-utils/src/scrub.ts"),
     },
   },
   define: {
-    __FF_ORIGIN__: JSON.stringify(process.env.VITE_FF_ORIGIN ?? "https://fatedfortress.com"),
-    __WORKER_ORIGIN__: JSON.stringify(process.env.VITE_WORKER_ORIGIN ?? "https://keys.fatedfortress.com"),
+    __FF_ORIGIN__:           JSON.stringify(process.env.VITE_FF_ORIGIN        ?? "https://fatedfortress.com"),
+    __WORKER_ORIGIN__:       JSON.stringify(process.env.VITE_WORKER_ORIGIN    ?? "https://keys.fatedfortress.com"),
+    __SENTRY_DSN_WORKER__:   JSON.stringify(process.env.VITE_SENTRY_DSN_WORKER ?? ""),
   },
 });

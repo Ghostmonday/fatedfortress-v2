@@ -14,7 +14,8 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "paths": {
-      "@fatedfortress/protocol": ["./../../packages/protocol/src/index.ts"]
+      "@fatedfortress/protocol": ["./../../packages/protocol/src/index.ts"],
+      "@fatedfortress/sentry-utils": ["./../../packages/sentry-utils/src/scrub.ts"]
     }
   },
   "include": ["src/**/*"],

@@ -11,6 +11,8 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "@sentry/browser": "^10.49.0",
+    "y-webrtc": "^10.3.0",
     "yjs": "^13.6.0"
   }
 }

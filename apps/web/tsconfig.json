@@ -16,10 +16,18 @@
     "skipLibCheck": true,
     "types": ["vite/client"],
     "paths": {
-      "@fatedfortress/protocol": ["./../../packages/protocol/src/index.ts"]
+      "@fatedfortress/protocol": ["./../../packages/protocol/src/index.ts"],
+      "@fatedfortress/sentry-utils": ["./../../packages/sentry-utils/src/scrub.ts"]
     }
   },
   "include": ["src/**/*", "src/**/*.tsx"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/pages/room.PATCH.ts"
+  ]
 }

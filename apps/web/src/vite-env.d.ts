@@ -7,11 +7,20 @@
 /** Injected by Vite define — relay WebSocket origin. */
 declare const __RELAY_ORIGIN__: string;
 
+/** Injected by Vite define — relay HTTP origin for REST calls (TURN creds). */
+declare const __RELAY_HTTP_ORIGIN__: string;
+
 /** Injected by Vite define — keystore worker iframe origin. */
 declare const __WORKER_ORIGIN__: string;
 
 /** Injected by Vite define — the canonical web app origin. */
 declare const __FF_ORIGIN__: string;
+
+/** Injected by Vite define — Sentry DSN for Zone 1 (SPA). */
+declare const __SENTRY_DSN_WEB__: string;
+
+/** Injected by Vite define — release tag for Sentry. */
+declare const __APP_VERSION__: string;
 
 /**
  * Augment Vite's ImportMetaEnv to include our custom VITE_ env vars so that

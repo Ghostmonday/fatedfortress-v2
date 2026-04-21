@@ -1,0 +1,7 @@
+{
+  "name": "@fatedfortress/sentry-utils",
+  "private": true,
+  "type": "module",
+  "main": "./src/scrub.ts",
+  "types": "./src/scrub.ts"
+}

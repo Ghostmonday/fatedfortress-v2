@@ -21,6 +21,7 @@ import {
   type DemoGrant,
 } from "../net/worker-bridge.js";
 import { mountDemoKeyBanner, mountKeyPromptBanner } from "../components/DemoKeyBanner.js";
+import { ConnectionBadge } from "../components/ConnectionBadge.js";
 import { ControlPane } from "../components/ControlPane.js";
 import { OutputPane } from "../components/OutputPane.js";
 import { SpectatorChatView } from "../components/SpectatorChat.js";
@@ -450,10 +451,27 @@ function mountSpectatorRoom(doc: FortressRoomDoc, container: HTMLElement): () =>
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
 
+  const roomHeader = container.querySelector<HTMLElement>(".room-header")
+    ?? container.querySelector<HTMLElement>("[data-room-header]")
+    ?? container;
+
+  const badge = new ConnectionBadge(roomHeader);
+  badge.watch();
+
+  function onConnectionTimeout(): void {
+    showBanner(
+      "Connection is taking longer than expected. You may be behind a restrictive NAT.",
+      8000
+    );
+  }
+  window.addEventListener("ff:connection-timeout", onConnectionTimeout);
+
   const cleanup = () => {
     removePresence(doc);
     if (presenceInterval) clearInterval(presenceInterval);
     cleanupRoomState(getRoomId(doc));
+    badge.destroy();
+    window.removeEventListener("ff:connection-timeout", onConnectionTimeout);
     splitPane.remove();
   };
 
@@ -532,6 +550,22 @@ export async function mountRoom(
   const outputPane = new OutputPane(doc);
   outputPane.mount(outputEl);
 
+  // ── ConnectionBadge ─────────────────────────────────────────────────────────
+  const roomHeader = container.querySelector<HTMLElement>(".ff-room-header")
+    ?? container.querySelector<HTMLElement>("[data-room-header]")
+    ?? container;
+
+  const badge = new ConnectionBadge(roomHeader);
+  badge.watch();
+
+  function onConnectionTimeout(): void {
+    showBanner(
+      "Connection is taking longer than expected. You may be behind a restrictive NAT.",
+      8000
+    );
+  }
+  window.addEventListener("ff:connection-timeout", onConnectionTimeout);
+
   // Initial presence
   upsertPresence(doc, { name: getMyDisplayName(), isSpectator });
 
@@ -556,6 +590,8 @@ export async function mountRoom(
     void bridge.requestTeardown();
     controlPane?.destroy();
     outputPane.destroy();
+    badge.destroy();
+    window.removeEventListener("ff:connection-timeout", onConnectionTimeout);
     removePresence(doc);
     if (presenceInterval) clearInterval(presenceInterval);
     cleanupRoomState(roomId);

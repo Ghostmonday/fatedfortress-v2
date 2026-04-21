@@ -11,6 +11,7 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "@sentry/browser": "^10.49.0",
     "hash-wasm": "^4.12.0"
   }
 }
