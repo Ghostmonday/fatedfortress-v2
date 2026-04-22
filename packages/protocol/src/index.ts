@@ -1,33 +1,25 @@
 /**
- * packages/protocol/src/index.ts — Shared types for FatedFortress.
+ * packages/protocol/src/index.ts — Shared types for FatedFortress MVP.
  *
- * Re-exported from: @fatedfortress/protocol
- * Consumed by: apps/web, apps/worker, apps/relay
+ * Sacred objects: Task, Submission, Decision
+ * System of record: Supabase
  *
- * FIX — Low L9: JSON serialization determinism for budget signing
- *   encodeBudgetTokenSigningMessage() uses deterministicJSON(), not raw JSON.stringify(),
- *   so signing bytes do not depend on object insertion order across engines/callers.
- *   deterministicJSON is internal; always sign/verify via encodeBudgetTokenSigningMessage.
+ * Legacy room-based types (deprecated, do not use in new code):
+ *   RoomId, ReceiptId, RoomCategory, RoomAccess, RoomRole,
+ *   PaletteIntent, PaletteContext (room-scoped variants),
+ *   FortressRoomDoc, join_room, spectate_room, fork_receipt, etc.
  *
- * Types:
- *   RoomId, ReceiptId, RoomCategory, RoomAccess
- *   PaletteIntent, PaletteContext, ParseResult
- *   BudgetToken, PaymentIntent
- *   PublicKeyBase58
- *   ProviderId
+ * New MVP types:
+ *   Profile, Project, Task, Submission, ReviewSession
+ *   DecisionReason, TaskStatus, SubmissionStatus
+ *   ClaimTaskIntent, SubmitSubmissionIntent, ApproveSubmissionIntent,
+ *   RejectSubmissionIntent, RequestRevisionIntent, ScopeProjectIntent,
+ *   VerifySubmissionIntent, ReviewReliability
  *
- * Crypto helpers:
- *   FFError (error class with code + message)
- *   hashOutput(output: string): Promise<string>
- *   base64urlEncode / base64urlDecode
- *   toBase58 / fromBase58
- *   verifyBudgetToken / generateTokenId / generateTokenNonce
- *   encodeBudgetTokenSigningMessage (canonical bytes; see L9) / isBudgetToken
- *   assertEd25519Supported
- *   BUDGET_TOKEN_TTL_MS
- *
- * Constants:
- *   FF_ORIGIN, WORKER_ORIGIN, PROVIDER_ALLOWLIST
+ * Crypto helpers (kept for receipt signing and audit trail):
+ *   FFError, hashOutput, base64urlEncode/Decode, toBase58/fromBase58,
+ *   verifyBudgetToken, generateTokenId, generateTokenNonce,
+ *   encodeBudgetTokenSigningMessage, assertEd25519Supported, BUDGET_TOKEN_TTL_MS
  */
 
 // ---------------------------------------------------------------------------
@@ -162,6 +154,287 @@ export type ParseResult =
   | { kind: "resolved"; intent: PaletteIntent; confidence: number; label: string }
   | { kind: "candidates"; candidates: Array<{ intent: PaletteIntent; confidence: number; label: string }> }
   | { kind: "error"; hint: string };
+
+// ---------------------------------------------------------------------------
+// MVP — Sacred Objects: Task, Submission, Decision
+// ---------------------------------------------------------------------------
+
+export type TaskStatus =
+  | "draft"
+  | "open"
+  | "claimed"
+  | "submitted"
+  | "under_review"
+  | "revision_requested"
+  | "approved"
+  | "rejected"
+  | "paid"
+  | "expired";
+
+export type ProjectStatus = "draft" | "active" | "completed";
+
+export type SubmissionStatus = "pending" | "approved" | "revision" | "rejected";
+
+export type ReviewSessionStatus = "active" | "resolved" | "archived";
+
+export type NotificationType =
+  | "task_claimed"
+  | "submission_received"
+  | "revision_requested"
+  | "payment_released"
+  | "submission_rejected"
+  | "claim_expired"
+  | "verification_failed"
+  | "auto_release_warning"
+  | "auto_released";
+
+/** Structured reason on every host decision. Enables analytics, fraud detection, pricing models. */
+export type DecisionReason =
+  | "requirements_not_met"
+  | "quality_issue"
+  | "scope_mismatch"
+  | "missing_files"
+  | "great_work"
+  | "approved_fast_track";
+
+/** Full deliverable type set. */
+export type DeliverableType =
+  | "file"
+  | "pr"
+  | "code_patch"
+  | "design_asset"
+  | "text"
+  | "audio"
+  | "video"
+  | "3d_model"
+  | "figma_link";
+
+export interface Profile {
+  id: string;
+  display_name: string;
+  role: "host" | "contributor";
+  github_username: string | null;
+  avatar_url: string | null;
+  review_reliability: number;          // composite 0-1 score
+  approval_rate: number;               // 0-1; % approved without revision_requested
+  avg_revision_count: number;
+  avg_response_time_minutes: number;
+  total_approved: number;
+  total_submitted: number;
+  total_rejected: number;
+}
+
+export interface Project {
+  id: string;
+  host_id: string;
+  title: string;
+  description: string | null;
+  references_urls: string[];
+  template_id: string | null;
+  status: ProjectStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ProjectWallet {
+  id: string;
+  project_id: string;
+  deposited: number;
+  locked: number;
+  released: number;
+  created_at: number;
+}
+
+export interface Task {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  payout_min: number;
+  payout_max: number;
+  approved_payout: number | null;
+  ambiguity_score: number | null;
+  estimated_minutes: number | null;
+  task_access: "invite" | "public";
+  status: TaskStatus;
+  claimed_by: string | null;
+  claimed_at: number | null;
+  soft_lock_expires_at: number | null;
+  submitted_at: number | null;
+  reviewed_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Submission {
+  id: string;
+  task_id: string;
+  contributor_id: string;
+  asset_url: string;
+  deliverable_type: DeliverableType | null;
+  ai_summary: string | null;
+  revision_number: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Decision {
+  id: string;
+  submission_id: string;
+  host_id: string;
+  decision_reason: DecisionReason;
+  review_notes: string | null;
+  structured_feedback: StructuredFeedback[] | null;
+  approved_payout: number | null;
+  revision_deadline: number | null;
+  created_at: number;
+}
+
+export interface StructuredFeedback {
+  dimension: string; // 'lighting' | 'timing' | 'quality' | 'style' | 'scope'
+  note: string;
+}
+
+export interface Invitation {
+  id: string;
+  project_id: string | null;
+  task_id: string | null;
+  invited_email: string | null;
+  invited_user_id: string | null;
+  token: string;
+  accepted_at: number | null;
+  expires_at: number;
+  created_at: number;
+}
+
+export interface ReviewSession {
+  id: string;
+  task_id: string;
+  submission_id: string;
+  host_id: string;
+  contributor_id: string | null;
+  ydoc_id: string | null;
+  status: ReviewSessionStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface AuditEntry {
+  id: string;
+  actor_id: string | null;
+  task_id: string | null;
+  action: string;
+  payload: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface ReviewReliability {
+  reviewReliability: number;
+  approvalRate: number;
+  avgRevisionCount: number;
+  avgResponseTimeMinutes: number;
+  totalApproved: number;
+  totalSubmitted: number;
+  totalRejected: number;
+}
+
+// ---------------------------------------------------------------------------
+// MVP Intents
+// ---------------------------------------------------------------------------
+
+export interface ScopeProjectIntent {
+  projectId: string;
+  title: string;
+  description: string;
+  projectType: string;
+  referenceUrls: string[];
+  budgetRange: { min: number; max: number };
+  targetTimeline?: string;
+}
+
+export interface ScopedTask {
+  title: string;
+  description: string;
+  deliverableType: DeliverableType;
+  payoutMin: number;
+  payoutMax: number;
+  ambiguityScore: number;        // 0-1
+  estimatedMinutes: number;
+  suggestedRole: string;
+}
+
+export interface ScopeProjectResult {
+  tasks: ScopedTask[];           // 1-10 atomic tasks
+  readmeDraft: string;            // markdown
+  folderStructure: string[];       // placeholder file paths
+  totalPayoutMin: number;
+  totalPayoutMax: number;
+}
+
+export interface ClaimTaskIntent {
+  taskId: string;
+  invitationToken?: string;
+}
+
+export interface SubmitSubmissionIntent {
+  taskId: string;
+  assetUrl: string;
+  deliverableType: DeliverableType;
+}
+
+export interface ApproveSubmissionIntent {
+  submissionId: string;
+  approvedPayout: number;
+  decisionReason: DecisionReason;
+  reviewNotes?: string;
+  structuredFeedback?: StructuredFeedback[];
+}
+
+export interface RejectSubmissionIntent {
+  submissionId: string;
+  decisionReason: DecisionReason;
+  notes: string;
+  structuredFeedback?: StructuredFeedback[];
+}
+
+export interface RequestRevisionIntent {
+  submissionId: string;
+  decisionReason: DecisionReason;
+  notes: string;
+  structuredFeedback?: StructuredFeedback[];
+  revisionDeadline?: Date;
+}
+
+export interface VerifySubmissionIntent {
+  submissionId: string;
+  assetUrl: string;
+  deliverableType: DeliverableType;
+}
+
+export interface VerificationResult {
+  passed: boolean;
+  checks: {
+    format_valid: boolean;
+    size_within_limit: boolean;       // < 500MB
+    not_empty: boolean;
+    mime_matches_type: boolean;
+    build_success?: boolean;           // code tasks only
+    pr_exists?: boolean;              // pr type only
+    figma_accessible?: boolean;       // figma_link type only
+  };
+  auto_reject: boolean;
+  suggested_decision_reason?: DecisionReason;
+  failure_summary?: string;
+}
+
+export type MVPIntent =
+  | ScopeProjectIntent
+  | ClaimTaskIntent
+  | SubmitSubmissionIntent
+  | ApproveSubmissionIntent
+  | RejectSubmissionIntent
+  | RequestRevisionIntent
+  | VerifySubmissionIntent;
 
 // ---------------------------------------------------------------------------
 // Budget & Liquidity

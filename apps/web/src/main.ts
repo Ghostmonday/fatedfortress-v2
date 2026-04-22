@@ -1,41 +1,34 @@
 /**
- * apps/web/src/main.ts — SPA shell: URL → page mount, palette, identity bootstrap.
+ * apps/web/src/main.ts — MVP router: Task, Submission, Decision.
  *
- * Routing: `/spectate/:id` is handled before the generic `/(\w+)/` matcher so spectate
- * never falls through to `table`. Palette commands that need room state use
- * `getActiveRoomDocIfSet()` only when `_currentPage === "room"`.
+ * Sacred objects: Task, Submission, Decision
+ * System of record: Supabase
  *
- * Intents: `palette:select` → `dispatchIntent`; room-specific handlers listen on
- * `palette:intent` from pages (e.g. room.ts).
- *
- * Sentry (Zone 1 — SPA):
- *   Initialised at the very top of the module so any error during bootstrap is captured.
- *   scrubEvent is the shared beforeSend guard from @fatedfortress/sentry-utils.
- *   sendDefaultPii: false — belt-and-suspenders to prevent auto PII collection.
+ * Routes:
+ *   /login           — Supabase Auth
+ *   /create          — Host: project brief + SCOPE
+ *   /tasks           — Contributor: browse + claim
+ *   /submit/:taskId  — Contributor: upload + submit
+ *   /reviews         — Host: review queue (MVP moat)
+ *   /project/:id     — Project detail + activity feed
+ *   /profile         — Profile + review_reliability
+ *   /settings        — GitHub + Stripe Connect onboarding
  */
 
-// ── Sentry — must be first ────────────────────────────────────────────────────
 import * as Sentry from "@sentry/browser";
 import { scrubEvent } from "@fatedfortress/sentry-utils";
+import { getSupabase } from "./auth/index.js";
+import { getRedirectPath } from "./auth/middleware.js";
+import { subscribeToNotifications, unsubscribeFromNotifications } from "./net/notifications.js";
 
 Sentry.init({
   dsn: typeof __SENTRY_DSN_WEB__ !== "undefined" ? __SENTRY_DSN_WEB__ : "",
   environment: import.meta.env.MODE,
-  // release: set in CI via VITE_APP_VERSION env var
   release: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : undefined,
   tracesSampleRate: 0.1,
   sendDefaultPii: false,
   beforeSend: (event) => scrubEvent(event as any),
 });
-
-// ── App imports ───────────────────────────────────────────────────────────────
-import { openPalette, buildPaletteContext } from "./components/Palette/index.js";
-import { showWelcomeModal } from "./components/WelcomeModal.js";
-import { hasSeenWelcome } from "./util/storage.js";
-import { createIdentity } from "./state/identity.js";
-import { handleUpgradeRoom } from "./handlers/upgrade.js";
-import { getActiveRoomDocIfSet } from "./state/ydoc.js";
-import type { PaletteIntent } from "@fatedfortress/protocol";
 
 const APP_ROOT = "#app";
 
@@ -50,155 +43,101 @@ function getContainer(): HTMLElement {
   return app;
 }
 
-// ── Page tracking ─────────────────────────────────────────────────────────────
+// ── Route registry ────────────────────────────────────────────────────────────
 
-type PageName = "table" | "room" | "connect" | "me";
-let _currentPage: PageName = "table";
+type PageCleanup = (() => void) | void | Promise<() => void>;
+type PageLoader = (container: HTMLElement, ...params: string[]) => Promise<() => void>;
 
-function setCurrentPage(page: PageName): void {
-  _currentPage = page;
-}
-
-function getCurrentPage(): PageName {
-  return _currentPage;
-}
-
-// ── Page mount functions ──────────────────────────────────────────────────────
-
-type PageCleanup = (() => void) | void;
-const router: Record<string, () => Promise<PageCleanup>> = {
-  table: async () => {
-    setCurrentPage("table");
-    const { mountTable } = await import("./pages/table.js");
-    return mountTable(getContainer());
-  },
-  room: async () => {
-    setCurrentPage("room");
-    const { mountRoom } = await import("./pages/room.js");
-    const pathParts = window.location.pathname.split("/");
-    const roomId = pathParts[2] || "rm_default";
-    return mountRoom(roomId, getContainer());
-  },
-  connect: async () => {
-    setCurrentPage("connect");
-    const { mountConnect } = await import("./pages/connect.js");
-    return mountConnect(getContainer());
-  },
-  me: async () => {
-    setCurrentPage("me");
-    const { mountMe } = await import("./pages/me.js");
-    return mountMe(getContainer());
-  },
+const routes: Record<string, PageLoader> = {
+  "/login":       () => import("./pages/login.js").then(m => m.mountLogin),
+  "/create":      () => import("./pages/create.js").then(m => m.mountCreate),
+  "/tasks":       () => import("./pages/tasks.js").then(m => m.mountTasks),
+  "/reviews":     () => import("./pages/reviews.js").then(m => m.mountReviews),
+  "/project":     () => import("./pages/project.js").then(m => m.mountProject),
+  "/profile":     () => import("./pages/profile.js").then(m => m.mountProfile),
+  "/settings":    () => import("./pages/settings.js").then(m => m.mountSettings),
+  // submit is handled specially with a taskId param
 };
 
-let currentUnmount: (() => void) | null = null;
+let currentCleanup: PageCleanup = null;
+let notifChannel: ReturnType<typeof subscribeToNotifications> | null = null;
 
 async function route(path: string) {
-  currentUnmount?.();
-  currentUnmount = null;
+  // Teardown previous page
+  if (currentCleanup) {
+    const cleanup = await currentCleanup;
+    cleanup?.();
+    currentCleanup = null;
+  }
 
-  const spectateMatch = path.match(/^\/spectate\/(.+)/);
-  if (spectateMatch) {
-    setCurrentPage("room");
-    const { mountRoom } = await import("./pages/room.js");
-    currentUnmount = await mountRoom(spectateMatch[1], getContainer(), { spectate: true }) ?? null;
+  // Global notification teardown
+  if (notifChannel) {
+    unsubscribeFromNotifications();
+    notifChannel = null;
+  }
+
+  const container = getContainer();
+
+  // Handle /submit/:taskId specially
+  const submitMatch = path.match(/^\/submit\/(.+)/);
+  if (submitMatch) {
+    const taskId = submitMatch[1];
+    const mod = await import("./pages/submit.js");
+    currentCleanup = mod.mountSubmit(container, taskId);
     return;
   }
 
-  const roomMatch = path.match(/^\/room\/(.+)/);
-  if (roomMatch) {
-    window.history.replaceState({}, "", `/room/${roomMatch[1]}`);
-  }
-
-  const [, page] = path.match(/^\/(\w+)/) ?? [];
-  if (path === "/" || !page || !(page in router)) {
-    window.history.replaceState({}, "", "/table");
-    currentUnmount = null;
+  // Static routes
+  const routePath = "/" + path.split("/")[1];
+  const loader = routes[routePath];
+  if (!loader) {
+    container.innerHTML = `<div class="not-found"><h1>404</h1><p>Page not found</p><a href="/">Home</a></div>`;
     return;
   }
 
-  try {
-    const unmount = await router[page as keyof typeof router]();
-    currentUnmount = typeof unmount === "function" ? unmount : null;
-  } catch (err) {
-    Sentry.captureException(err, { tags: { page } });
-    console.error(`[main] Failed to mount page "${page}":`, err);
-  }
+  const page = await loader();
+  currentCleanup = page(container);
 }
 
-// ── Intent dispatcher ─────────────────────────────────────────────────────────
-
-async function dispatchIntent(intent: PaletteIntent): Promise<void> {
-  switch (intent.type) {
-    case "upgrade_room": {
-      const doc = getActiveRoomDocIfSet();
-      if (doc) {
-        await handleUpgradeRoom(intent, doc);
-      } else {
-        console.warn("[dispatch] upgrade_room but no active room doc");
-      }
-      break;
-    }
-    default:
-      window.dispatchEvent(new CustomEvent("palette:intent", { detail: { intent } }));
-  }
-}
-
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
+// ── Auth guard ────────────────────────────────────────────────────────────────
 
 async function init() {
-  try {
-    await createIdentity();
-  } catch (err) {
-    console.warn("[main] Could not create identity:", err);
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  const isLoggedIn = !!session?.user;
+  const redirectTo = getRedirectPath(isLoggedIn, window.location.pathname);
+
+  if (redirectTo) {
+    window.location.href = redirectTo;
+    return;
   }
 
-  if (!hasSeenWelcome()) {
-    showWelcomeModal();
+  // Subscribe to notifications if logged in
+  if (isLoggedIn && session.user) {
+    notifChannel = subscribeToNotifications(session.user.id);
   }
 
+  // Initial route
   await route(window.location.pathname);
 
+  // Navigation
   window.addEventListener("popstate", () => route(window.location.pathname));
 
-  window.addEventListener("palette:select", async (e: Event) => {
-    const { intent } = (e as CustomEvent).detail as { intent: PaletteIntent };
-    await dispatchIntent(intent);
+  // Intercept internal link clicks for SPA navigation
+  document.addEventListener("click", (e) => {
+    const target = (e.target as Element)?.closest("a");
+    if (!target) return;
+    const href = target.getAttribute("href");
+    if (!href || href.startsWith("http") || href.startsWith("mailto:")) return;
+    if (href.startsWith("/")) {
+      e.preventDefault();
+      window.history.pushState({}, "", href);
+      route(href);
+    }
   });
 }
 
-// ── Palette shortcut ──────────────────────────────────────────────────────────
-
-function openPaletteWithContext(): void {
-  const page = getCurrentPage();
-  const roomDoc = page === "room" ? getActiveRoomDocIfSet() ?? null : null;
-  openPalette(
-    buildPaletteContext({
-      currentPage: page,
-      roomDoc,
-      focusedReceiptId: null,
-      currentModel: null,
-      keyValidated: false,
-      fuelLevel: null,
-      herenowLinked: false,
-    })
-  );
-}
-
-window.addEventListener("keydown", (e) => {
-  if (
-    e.target instanceof HTMLInputElement ||
-    e.target instanceof HTMLTextAreaElement ||
-    (e.target instanceof HTMLElement && e.target.isContentEditable)
-  ) return;
-
-  if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
-    e.preventDefault();
-    openPaletteWithContext();
-  }
-});
-
-// ── Service worker (production only) ─────────────────────────────────────────
+// ── Service worker ────────────────────────────────────────────────────────────
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(console.error);

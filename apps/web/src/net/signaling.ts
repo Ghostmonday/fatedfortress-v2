@@ -1,6 +1,17 @@
 /**
  * apps/web/src/net/signaling.ts — Relay WebSocket + Y.js updates + y-webrtc TURN provider.
  *
+ * SCOPE RESTRICTION (Post-Refactor v1):
+ * WebRTC signaling via y-webrtc is restricted to **review session peers only.**
+ * All Y.js sync, presence, and WebRTC connections must route through
+ * a `review_sessions.ydoc_id` — never through room IDs.
+ *
+ * Legacy joinRoom / spectateRoom remain for backward compatibility.
+ * New code must not create Y.js sessions outside review_sessions.
+ *
+ * See also: Section 6 of the Post-Refactor Implementation Brief.
+ */
+ *
  * Spectate (Task 2): joinRoom(..., { spectate }) sends spectator=1 — relay skips WebRTC signaling
  * routing for those peers (they still get Y.js sync). Client ignores offer/answer/ICE when spectating.
  *

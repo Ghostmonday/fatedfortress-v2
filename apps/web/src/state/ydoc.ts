@@ -1,5 +1,17 @@
 /**
- * ydoc.ts — Y.js CRDT document factory for FatedFortress rooms.
+ * apps/web/src/state/ydoc.ts — Y.js CRDT document factory.
+ *
+ * SCOPE RESTRICTION (Post-Refactor v1):
+ * Y.js is narrowed to **one purpose:** live annotation inside an active `review_session`.
+ * It activates when a host opens a review session and deactivates when resolved.
+ * **No Y.js outside this boundary.**
+ *
+ * Legacy room-based functions (createRoomDoc, joinRoom, etc.) remain for backward
+ * compatibility during the transition but MUST NOT be used in new code.
+ * All new Y.js usage must be review_sessions-scoped only.
+ *
+ * See also: Section 6 of the Post-Refactor Implementation Brief.
+ */
  *
  * SCHEMA IS IMMUTABLE after v1 ships. New fields are ADDITIVE ONLY.
  * See schema-migrations.ts for forward-compatibility rules.
